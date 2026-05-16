@@ -23,6 +23,9 @@ export default function RecommendationsPage() {
   const { data: recs = [], mutate } = useSWR<Recommendation[]>('/api/recommendations', fetcher)
   const { data: config } = useSWR<Config>('/api/config', fetcher)
   const [analyzing, setAnalyzing] = useState(false)
+  const [creatingId, setCreatingId] = useState<string | null>(null)
+  const [created, setCreated] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
 
   const grouped = recs.reduce<Record<string, Recommendation[]>>((acc, r) => {
     ;(acc[r.repoPath] ??= []).push(r)
@@ -31,6 +34,7 @@ export default function RecommendationsPage() {
 
   const runAnalyze = async () => {
     setAnalyzing(true)
+    setError(null)
     try {
       await fetch('/api/analyze', {
         method: 'POST',
@@ -40,6 +44,26 @@ export default function RecommendationsPage() {
       await mutate()
     } finally {
       setAnalyzing(false)
+    }
+  }
+
+  const createSkill = async (recommendationId: string) => {
+    setCreatingId(recommendationId)
+    setError(null)
+    try {
+      const resp = await fetch('/api/recommendations/create-skill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recommendationId }),
+      })
+      const body = await resp.json()
+      if (!resp.ok) {
+        setError(body.error ?? `Create failed: HTTP ${resp.status}`)
+        return
+      }
+      setCreated(prev => ({ ...prev, [recommendationId]: body.path }))
+    } finally {
+      setCreatingId(null)
     }
   }
 
@@ -60,6 +84,8 @@ export default function RecommendationsPage() {
         </p>
       )}
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       {recs.length === 0 && config?.llmConnected && (
         <p className="text-sm text-muted-foreground">
           No recommendations yet. Click Analyze All Repos.
@@ -74,11 +100,32 @@ export default function RecommendationsPage() {
           <CardContent className="space-y-3">
             {items.map(r => (
               <div key={r.id} className="border-l-2 border-primary pl-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 bg-muted rounded uppercase">{r.kind}</span>
-                  <span className="font-medium text-sm">{r.name}</span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 bg-muted rounded uppercase">
+                        {r.kind}
+                      </span>
+                      <span className="font-medium text-sm">{r.name}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{r.rationale}</p>
+                    {created[r.id] && (
+                      <p className="text-xs text-green-700 mt-1 break-all">
+                        Created: {created[r.id]}
+                      </p>
+                    )}
+                  </div>
+                  {r.kind === 'skill' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createSkill(r.id)}
+                      disabled={creatingId === r.id || Boolean(created[r.id])}
+                    >
+                      {creatingId === r.id ? 'Creating…' : created[r.id] ? 'Created' : 'Create skill'}
+                    </Button>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{r.rationale}</p>
               </div>
             ))}
           </CardContent>

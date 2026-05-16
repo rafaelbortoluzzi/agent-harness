@@ -18,13 +18,14 @@ hooks, MCPs, instructions, plugins, and rules.
 | 2 - LLM judge, gap analyst, editor, watch mode | Done | v0.2.0 |
 | 3a - Per-scan registry diff in Scan Log | Done | unreleased |
 | 3b - Snooze UI | Done | unreleased |
+| 3c - Create skill from recommendation | Done | unreleased |
 
 Confirmed locally on 2026-05-16:
 
-- Tests: 72 passing.
+- Tests: 76 passing.
 - Build: passing.
 - Lint: passing.
-- Routes: 16 generated app routes.
+- Routes: 17 generated app routes.
 - Tags: v0.1.0, v0.2.0.
 - Package version: 0.2.0.
 - CLI: available for scan, list, doctor, export, snooze, judge, analyze, watch.
@@ -62,6 +63,9 @@ Confirmed locally on 2026-05-16:
   registry items rather than pre-validation adapter output.
 - Added `/api/snooze` plus Inventory/side-panel controls to snooze and
   unsnooze items without using the CLI.
+- Added `/api/recommendations/create-skill` and a Recommendations page action
+  that creates `.claude/skills/<name>/SKILL.md` drafts from skill
+  recommendations.
 
 ## Immediate Next Work
 
@@ -73,13 +77,12 @@ Confirmed locally on 2026-05-16:
    - editor stream/apply end to end
 3. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-4. Continue Phase 3 with "Create skill from recommendation".
+4. Continue Phase 3 with watch mode status or additional adapters.
 
 ## Phase 3 Backlog
 
 | Item | Effort | Value |
 | --- | --- | --- |
-| Create skill from recommendation button | M | High - closes gap analysis loop |
 | Watch mode status indicator in header UI | S | Low |
 | Additional adapters: Cursor `.cursorrules`, Aider, Continue | M each | Medium |
 | Remote registry for multi-developer sharing | L | High for teams |

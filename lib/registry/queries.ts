@@ -242,6 +242,10 @@ export function getRecommendations(repoPath?: string) {
     : q.all()
 }
 
+export function getRecommendationById(id: string) {
+  return getDb().select().from(recommendations).where(eq(recommendations.id, id)).get() ?? null
+}
+
 export function clearRecommendations(repoPath: string): void {
   getDb().delete(recommendations).where(eq(recommendations.repoPath, repoPath)).run()
 }
