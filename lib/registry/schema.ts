@@ -1,0 +1,45 @@
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+
+export const items = sqliteTable('items', {
+  id: text('id').primaryKey(),
+  runtime: text('runtime').notNull(),
+  scope: text('scope').notNull(),
+  type: text('type').notNull(),
+  name: text('name').notNull(),
+  path: text('path').notNull(),
+  repoPath: text('repo_path'),
+  health: text('health').notNull().default('ok'),
+  issues: text('issues', { mode: 'json' }).notNull().$type<string[]>().default([]),
+  metadata: text('metadata', { mode: 'json' })
+    .notNull()
+    .$type<Record<string, unknown>>()
+    .default({}),
+  scannedAt: text('scanned_at').notNull(),
+})
+
+export const scans = sqliteTable('scans', {
+  id: text('id').primaryKey(),
+  startedAt: text('started_at').notNull(),
+  finishedAt: text('finished_at'),
+  reposScanned: integer('repos_scanned').default(0),
+  itemsFound: integer('items_found').default(0),
+  itemsBroken: integer('items_broken').default(0),
+  status: text('status', { enum: ['running', 'done', 'error'] }).notNull().default('running'),
+  error: text('error'),
+})
+
+export const repos = sqliteTable('repos', {
+  path: text('path').primaryKey(),
+  label: text('label'),
+  source: text('source', { enum: ['config', 'auto-discovered', 'manual'] }).notNull(),
+  addedAt: text('added_at').notNull(),
+  lastScannedAt: text('last_scanned_at'),
+  healthScore: integer('health_score'),
+})
+
+export const snoozedItems = sqliteTable('snoozed_items', {
+  itemId: text('item_id').primaryKey(),
+  reason: text('reason'),
+  snoozedAt: text('snoozed_at').notNull(),
+  untilDate: text('until_date'),
+})

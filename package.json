@@ -40,9 +40,17 @@
     "eslint-config-next": "16.2.6",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
+    "node-gyp": "^12.3.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.9",
     "tsx": "^4.22.0",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }
