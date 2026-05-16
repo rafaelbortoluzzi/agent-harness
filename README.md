@@ -22,14 +22,18 @@ pnpm cli list --runtime claude    # list items, optionally filtered
 pnpm cli doctor                   # repo health summary; exit 1 if broken
 pnpm cli export <path>            # backup registry.db
 pnpm cli snooze <item-id> [--days N] [--reason TEXT]
+pnpm cli judge [--runtime X] [--limit N]      # LLM quality scores (needs key)
+pnpm cli analyze [--repo PATH]                # LLM gap recommendations
+pnpm cli watch                                # daemon: auto-scan on change
 ```
 
 CLI is the source of truth for CI integration. UI is a view layer.
 
 ## UI
 
-- **Dashboard** — health score per repo, broken items, "Scan Now" with progress polling
-- **Inventory** — filterable + paginated table with debounced search; click row → side panel
+- **Dashboard** — health score per repo, broken items, "Scan Now" + "Judge with LLM"
+- **Inventory** — filterable + paginated table with debounced search; row → side panel with quality score + "Edit with Claude" stream + apply
+- **Recommendations** — LLM gap analyst output per repo, "Analyze All Repos" button
 - **Scan Log** — chronological scan history with duration + status
 - **Settings** — discovery roots, explicit repos, depth, LLM key status
 
@@ -55,10 +59,19 @@ User data lives at `~/.agent-harness/` (override with `AGENT_HARNESS_DIR`):
 - `config.json` — discovery roots, depth, health weights
 - `registry.db` — items, scans, repos, snoozes
 
+## LLM Features (Phase 2)
+
+All optional. Activated by setting `ANTHROPIC_API_KEY` in the shell environment.
+
+- **Judge** — `pnpm cli judge` scores each skill/agent/rule/command 0-10 with one-sentence rationale (Claude Sonnet 4.6, prompt-cached system message). Dashboard exposes a Judge button.
+- **Gap analyst** — `pnpm cli analyze` asks Claude to recommend up to 5 missing skills/agents per repo based on the existing inventory. Output rendered at `/recommendations`.
+- **Skill editor** — In the inventory side panel, "Edit with Claude" streams an edited file body via NDJSON. Apply writes atomically (tmp + rename).
+- **Watch** — `pnpm cli watch` runs a chokidar daemon over `~/.claude/`, `~/.codex/`, and `<repo>/.claude/`, debounced to 1.5s, triggering a full rescan on change.
+
 ## Roadmap
 
-Phase 2 (separate plan):
-- LLM judge — score skill quality with Claude
-- LLM gap analyst — recommend missing skills/agents per repo
-- LLM skill editor — stream-edit a skill, apply diff
-- File watching — auto-scan on `.claude/` change
+Phase 3 ideas:
+- Per-scan diff (new/changed/removed items) in Scan Log
+- Snooze UI (currently CLI-only)
+- Remote registry for team-wide inventory
+- Adapters for additional runtimes (Cursor, Aider, Continue)
