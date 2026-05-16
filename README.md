@@ -14,6 +14,15 @@ pnpm dev   # then open http://127.0.0.1:3000
 
 Zero config needed. Add discovery roots via Settings or `~/.agent-harness/config.json`.
 
+Current local smoke scan:
+
+- 11 repos discovered from `/Users/rafaelbortoluzzi/code`
+- 116 registry items
+- 0 broken items
+- Caveman detected from `~/.claude/plugins/marketplaces/caveman`
+
+![Agent Harness dashboard](public/agent-harness-dashboard.png)
+
 ## CLI
 
 ```sh
@@ -70,8 +79,14 @@ All optional. Activated by setting `ANTHROPIC_API_KEY` in the shell environment.
 
 ## Roadmap
 
+See [ROADMAP.md](ROADMAP.md) for the current status ledger, known debt, and
+next development slice.
+
 Phase 3 ideas:
+
 - Per-scan diff (new/changed/removed items) in Scan Log
 - Snooze UI (currently CLI-only)
+- Create skill from recommendation
+- Watch mode status indicator
 - Remote registry for team-wide inventory
 - Adapters for additional runtimes (Cursor, Aider, Continue)

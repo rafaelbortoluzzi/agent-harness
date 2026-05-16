@@ -45,18 +45,25 @@ Confirmed locally on 2026-05-16:
   reclassified items no longer stay visible after later scans.
 - Fixed current ESLint errors in config tests, dashboard polling, and the
   mobile breakpoint hook.
+- Committed the current work locally as
+  `9262f72 chore: document roadmap and scan real plugins`.
+- GitHub publishing is blocked until GitHub CLI (`gh`) is installed or a remote
+  repository is created manually.
+- Captured a real dashboard screenshot at
+  `public/agent-harness-dashboard.png` and added it to the README.
 
 ## Immediate Next Work
 
-1. Create GitHub repo and push `main` plus tags.
+1. Create GitHub repo and push `main` plus tags once `gh` is available or a
+   remote URL is provided.
 2. Run real LLM smoke with `ANTHROPIC_API_KEY` set:
    - judge end to end
    - gap analysis end to end
    - editor stream/apply end to end
-3. Capture UI screenshot and update README.
-4. Decide whether stale registry cleanup should also cascade to snoozes,
+3. Decide whether stale registry cleanup should also cascade to snoozes,
    recommendations, or quality history when those records reference deleted
    items.
+4. Start Phase 3 with per-scan diff in Scan Log.
 
 ## Phase 3 Backlog
 
