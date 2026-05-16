@@ -8,6 +8,7 @@ import type { Health, ItemType, Runtime } from '@/lib/scanner/adapters/base'
 import { hasApiKey } from '@/lib/llm/client'
 import { judgeUnjudged } from '@/lib/llm/judge-runner'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
+import { startWatcher } from '@/lib/watch'
 
 const cmd = process.argv[2]
 const args = process.argv.slice(3)
@@ -132,6 +133,23 @@ async function main(): Promise<number> {
       return 0
     }
 
+    case 'watch': {
+      process.stderr.write('Starting file watcher (Ctrl+C to stop)…\n')
+      const stop = await startWatcher({
+        onScan: reason => process.stderr.write(`[scan] ${reason}\n`),
+      })
+      const handleSignal = async () => {
+        process.stderr.write('\nStopping…\n')
+        await stop()
+        process.exit(0)
+      }
+      process.on('SIGINT', handleSignal)
+      process.on('SIGTERM', handleSignal)
+      // keep alive
+      await new Promise(() => {})
+      return 0
+    }
+
     case 'snooze': {
       const id = args[0]
       if (!id) {
@@ -147,7 +165,7 @@ async function main(): Promise<number> {
 
     default:
       process.stderr.write(
-        'Usage: agent-harness <scan|list|doctor|export|snooze|judge|analyze> [...flags]\n',
+        'Usage: agent-harness <scan|list|doctor|export|snooze|judge|analyze|watch> [...flags]\n',
       )
       return 1
   }
