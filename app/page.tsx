@@ -1,6 +1,6 @@
 'use client'
 import useSWR from 'swr'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { HealthBadge } from '@/components/health-badge'
@@ -42,14 +42,15 @@ export default function Dashboard() {
   const [scanId, setScanId] = useState<string | null>(null)
   const scan = useSWR<Scan>(scanId ? `/api/scan/${scanId}` : null, fetcher, {
     refreshInterval: 800,
+    onSuccess: data => {
+      if (data.status !== 'running') {
+        setScanId(null)
+        void repos.mutate()
+        void scans.mutate()
+        void broken.mutate()
+      }
+    },
   })
-
-  useEffect(() => {
-    if (scan.data && scan.data.status !== 'running' && scanId) {
-      setScanId(null)
-      repos.mutate(); scans.mutate(); broken.mutate()
-    }
-  }, [scan.data, scanId])
 
   const triggerScan = async () => {
     const r = await fetch('/api/scan', { method: 'POST' }).then(r => r.json())

@@ -40,6 +40,14 @@ export function upsertItem(item: RegistryItem): void {
     .run()
 }
 
+export function deleteItemsMissingFromScan(currentItemIds: string[]): number {
+  const query = getDb().delete(items)
+  const result = currentItemIds.length
+    ? query.where(notInArray(items.id, currentItemIds)).run()
+    : query.run()
+  return result.changes
+}
+
 function buildWhere(filter: ItemFilter) {
   const conds = []
   if (filter.runtime) conds.push(eq(items.runtime, filter.runtime))

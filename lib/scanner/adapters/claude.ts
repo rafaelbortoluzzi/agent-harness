@@ -136,6 +136,67 @@ function mcpsFromSettings(
   }))
 }
 
+function pluginItem(pluginPath: string, fallbackName: string): RegistryItem {
+  const manifest =
+    readJsonSafe(path.join(pluginPath, 'manifest.json')) ??
+    readJsonSafe(path.join(pluginPath, 'plugin.json')) ??
+    {}
+  const packageFile = fs.existsSync(path.join(pluginPath, `${fallbackName}.skill`))
+    ? `${fallbackName}.skill`
+    : null
+
+  return {
+    id: makeId('claude', 'personal', 'plugin', pluginPath),
+    runtime: 'claude',
+    scope: 'personal',
+    type: 'plugin',
+    name: (manifest.name as string) ?? fallbackName,
+    path: pluginPath,
+    repoPath: null,
+    health: 'ok',
+    issues: [],
+    metadata: packageFile ? { ...manifest, packageFile } : manifest,
+    scannedAt: now(),
+  }
+}
+
+function isPluginDir(pluginPath: string, name: string): boolean {
+  return (
+    fs.existsSync(path.join(pluginPath, 'manifest.json')) ||
+    fs.existsSync(path.join(pluginPath, 'plugin.json')) ||
+    fs.existsSync(path.join(pluginPath, `${name}.skill`))
+  )
+}
+
+function scanPluginDir(pluginsDir: string): RegistryItem[] {
+  if (!fs.existsSync(pluginsDir)) return []
+
+  const out: RegistryItem[] = []
+  const seen = new Set<string>()
+
+  const addPlugin = (pluginPath: string, name: string) => {
+    if (seen.has(pluginPath) || !isPluginDir(pluginPath, name)) return
+    seen.add(pluginPath)
+    out.push(pluginItem(pluginPath, name))
+  }
+
+  for (const entry of fs.readdirSync(pluginsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const pluginPath = path.join(pluginsDir, entry.name)
+    addPlugin(pluginPath, entry.name)
+  }
+
+  const marketplaceDir = path.join(pluginsDir, 'marketplaces')
+  if (fs.existsSync(marketplaceDir)) {
+    for (const entry of fs.readdirSync(marketplaceDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      addPlugin(path.join(marketplaceDir, entry.name), entry.name)
+    }
+  }
+
+  return out
+}
+
 export class ClaudeAdapter implements RuntimeAdapter {
   id = 'claude' as const
   producedTypes: ItemType[] = [
@@ -170,27 +231,7 @@ export class ClaudeAdapter implements RuntimeAdapter {
       }
     }
 
-    const pluginsDir = path.join(this.personalDir, 'plugins')
-    if (fs.existsSync(pluginsDir)) {
-      for (const entry of fs.readdirSync(pluginsDir, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue
-        const pluginPath = path.join(pluginsDir, entry.name)
-        const manifest = readJsonSafe(path.join(pluginPath, 'manifest.json')) ?? {}
-        out.push({
-          id: makeId('claude', 'personal', 'plugin', pluginPath),
-          runtime: 'claude',
-          scope: 'personal',
-          type: 'plugin',
-          name: (manifest.name as string) ?? entry.name,
-          path: pluginPath,
-          repoPath: null,
-          health: 'ok',
-          issues: [],
-          metadata: manifest,
-          scannedAt: now(),
-        })
-      }
-    }
+    out.push(...scanPluginDir(path.join(this.personalDir, 'plugins')))
 
     return out
   }

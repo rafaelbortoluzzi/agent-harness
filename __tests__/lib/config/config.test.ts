@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { getConfig, setConfig } from '@/lib/config'
+import { getConfig, getEffectiveWeights, setConfig } from '@/lib/config'
 
 describe('config', () => {
   const testDir = path.join(os.tmpdir(), `harness-cfg-${Date.now()}-${Math.random()}`)
@@ -51,7 +51,6 @@ describe('config', () => {
       respectGitignore: true,
       healthWeights: { perBrokenItem: 99 },
     })
-    const { getEffectiveWeights } = require('@/lib/config')
     const w = getEffectiveWeights()
     expect(w.perBrokenItem).toBe(99)
     expect(w.missingInstruction).toBe(20)

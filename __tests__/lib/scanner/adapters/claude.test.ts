@@ -59,6 +59,17 @@ describe('ClaudeAdapter', () => {
     expect(items.some(i => i.type === 'plugin' && i.name === 'my-plugin')).toBe(true)
   })
 
+  it('scans installed marketplace plugins by skill package', async () => {
+    const marketplacePluginDir = path.join(tmp, 'plugins', 'marketplaces', 'caveman')
+    fs.mkdirSync(marketplacePluginDir, { recursive: true })
+    fs.writeFileSync(path.join(marketplacePluginDir, 'caveman.skill'), 'zip-bytes')
+
+    const items = await adapter.scanPersonal()
+
+    expect(items.some(i => i.type === 'plugin' && i.name === 'caveman')).toBe(true)
+    expect(items.some(i => i.type === 'plugin' && i.name === 'marketplaces')).toBe(false)
+  })
+
   it('scans commands directory', async () => {
     const cmdDir = path.join(tmp, 'commands')
     fs.mkdirSync(cmdDir, { recursive: true })

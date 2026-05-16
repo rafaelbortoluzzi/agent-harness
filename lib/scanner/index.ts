@@ -1,5 +1,6 @@
 import { getConfig } from '@/lib/config'
 import {
+  deleteItemsMissingFromScan,
   failScan,
   finishScan,
   startScan,
@@ -63,6 +64,7 @@ export async function runScan(
         issues,
       })
     }
+    deleteItemsMissingFromScan(allItems.map(item => item.id))
 
     for (const { repoPath, items } of repoResults) {
       updateRepoHealth(repoPath, computeHealthScore(items))
