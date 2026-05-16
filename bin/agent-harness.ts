@@ -7,6 +7,7 @@ import { getItems, getRepos, snoozeItem } from '@/lib/registry/queries'
 import type { Health, ItemType, Runtime } from '@/lib/scanner/adapters/base'
 import { hasApiKey } from '@/lib/llm/client'
 import { judgeUnjudged } from '@/lib/llm/judge-runner'
+import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
 
 const cmd = process.argv[2]
 const args = process.argv.slice(3)
@@ -108,6 +109,29 @@ async function main(): Promise<number> {
       return 0
     }
 
+    case 'analyze': {
+      if (!hasApiKey()) {
+        process.stderr.write('ANTHROPIC_API_KEY not set\n')
+        return 1
+      }
+      const onlyRepo = flag('repo')
+      const repos = getRepos().filter(r => !onlyRepo || r.path === onlyRepo)
+      let total = 0
+      for (const repo of repos) {
+        const items = getItems({ repoPath: repo.path })
+        process.stderr.write(`Analyzing ${repo.path} (${items.length} items)…\n`)
+        try {
+          const n = await analyzeAndPersist(repo.path, items)
+          process.stderr.write(`  ${n} recommendation(s)\n`)
+          total += n
+        } catch (err) {
+          process.stderr.write(`  error: ${(err as Error).message}\n`)
+        }
+      }
+      process.stderr.write(`Done. ${total} recommendations across ${repos.length} repos.\n`)
+      return 0
+    }
+
     case 'snooze': {
       const id = args[0]
       if (!id) {
@@ -122,7 +146,9 @@ async function main(): Promise<number> {
     }
 
     default:
-      process.stderr.write('Usage: agent-harness <scan|list|doctor|export|snooze|judge> [...flags]\n')
+      process.stderr.write(
+        'Usage: agent-harness <scan|list|doctor|export|snooze|judge|analyze> [...flags]\n',
+      )
       return 1
   }
 }

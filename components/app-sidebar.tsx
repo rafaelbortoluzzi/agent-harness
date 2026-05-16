@@ -9,13 +9,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { History, Home, Package, Settings } from 'lucide-react'
+import { History, Home, Lightbulb, Package, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
   { href: '/', label: 'Dashboard', Icon: Home },
   { href: '/inventory', label: 'Inventory', Icon: Package },
+  { href: '/recommendations', label: 'Recommendations', Icon: Lightbulb },
   { href: '/scan-log', label: 'Scan Log', Icon: History },
   { href: '/settings', label: 'Settings', Icon: Settings },
 ]
