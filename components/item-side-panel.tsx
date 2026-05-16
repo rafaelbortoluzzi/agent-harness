@@ -1,6 +1,11 @@
 'use client'
+import { useState } from 'react'
+import useSWR from 'swr'
 import { HealthBadge } from './health-badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+
+const fetcher = (u: string) => fetch(u).then(r => r.json())
 
 export interface PanelItem {
   id: string
@@ -20,6 +25,74 @@ export interface PanelItem {
 }
 
 export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () => void }) {
+  const { data: config } = useSWR<{ llmConnected: boolean }>('/api/config', fetcher)
+  const [showEditor, setShowEditor] = useState(false)
+  const [prompt, setPrompt] = useState('')
+  const [streamed, setStreamed] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [applied, setApplied] = useState(false)
+
+  const canEdit =
+    config?.llmConnected &&
+    ['skill', 'agent', 'rule', 'command', 'instruction'].includes(item.type)
+
+  const runEdit = async () => {
+    setStreaming(true)
+    setStreamed('')
+    setError(null)
+    setApplied(false)
+    try {
+      const resp = await fetch('/api/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: item.id, prompt }),
+      })
+      if (!resp.ok || !resp.body) {
+        setError(`HTTP ${resp.status}`)
+        return
+      }
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line) continue
+          try {
+            const chunk = JSON.parse(line) as { type: string; text?: string; error?: string }
+            if (chunk.type === 'text' && chunk.text) {
+              setStreamed(prev => prev + chunk.text)
+            } else if (chunk.type === 'error' && chunk.error) {
+              setError(chunk.error)
+            }
+          } catch {
+            // skip
+          }
+        }
+      }
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  const apply = async () => {
+    setError(null)
+    const resp = await fetch('/api/edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId: item.id, apply: true, content: streamed }),
+    })
+    if (resp.ok) setApplied(true)
+    else setError(`Apply failed: HTTP ${resp.status}`)
+  }
+
   return (
     <div className="fixed right-0 top-0 h-full w-96 bg-background border-l shadow-xl p-4 overflow-auto z-50">
       <div className="flex items-center justify-between mb-4">
@@ -92,6 +165,53 @@ export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () 
         <div className="text-xs text-muted-foreground">
           Scanned: {new Date(item.scannedAt).toLocaleString()}
         </div>
+
+        {canEdit && (
+          <div className="border-t pt-3 space-y-2">
+            {!showEditor ? (
+              <Button size="sm" variant="outline" onClick={() => setShowEditor(true)}>
+                Edit with Claude
+              </Button>
+            ) : (
+              <>
+                <Input
+                  placeholder="Describe the edit (e.g. tighten triggers)…"
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={runEdit} disabled={streaming || !prompt.trim()}>
+                    {streaming ? 'Streaming…' : 'Generate'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditor(false); setStreamed(''); setPrompt(''); setError(null); setApplied(false)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {error && <div className="text-xs text-red-600">{error}</div>}
+                {streamed && (
+                  <>
+                    <pre className="text-xs bg-muted p-2 rounded max-h-80 overflow-auto whitespace-pre-wrap">
+                      {streamed}
+                    </pre>
+                    {!applied ? (
+                      <Button size="sm" onClick={apply} disabled={streaming}>
+                        Apply to disk
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-green-700">✓ Applied. Rescan to refresh metadata.</span>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
