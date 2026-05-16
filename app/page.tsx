@@ -30,6 +30,10 @@ interface Scan {
   reposScanned: number
 }
 
+interface Config {
+  llmConnected: boolean
+}
+
 export default function Dashboard() {
   const repos = useSWR<Repo[]>('/api/registry?resource=repos', fetcher)
   const scans = useSWR<Scan[]>('/api/registry?resource=scans', fetcher)
@@ -52,6 +56,17 @@ export default function Dashboard() {
     setScanId(r.scanId)
   }
 
+  const config = useSWR<Config>('/api/config', fetcher)
+  const [judging, setJudging] = useState(false)
+  const triggerJudge = async () => {
+    setJudging(true)
+    try {
+      await fetch('/api/judge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    } finally {
+      setJudging(false)
+    }
+  }
+
   const repoList = repos.data ?? []
   const brokenList = broken.data ?? []
   const summary = scans.data?.[0]
@@ -64,9 +79,16 @@ export default function Dashboard() {
     <div className="space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Dashboard</h2>
-        <Button onClick={triggerScan} disabled={running}>
-          {running ? 'Scanning…' : 'Scan Now'}
-        </Button>
+        <div className="flex gap-2">
+          {config.data?.llmConnected && (
+            <Button variant="outline" onClick={triggerJudge} disabled={judging}>
+              {judging ? 'Judging…' : 'Judge with LLM'}
+            </Button>
+          )}
+          <Button onClick={triggerScan} disabled={running}>
+            {running ? 'Scanning…' : 'Scan Now'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

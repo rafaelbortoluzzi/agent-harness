@@ -5,6 +5,8 @@ import path from 'path'
 import { runScan } from '@/lib/scanner'
 import { getItems, getRepos, snoozeItem } from '@/lib/registry/queries'
 import type { Health, ItemType, Runtime } from '@/lib/scanner/adapters/base'
+import { hasApiKey } from '@/lib/llm/client'
+import { judgeUnjudged } from '@/lib/llm/judge-runner'
 
 const cmd = process.argv[2]
 const args = process.argv.slice(3)
@@ -83,6 +85,29 @@ async function main(): Promise<number> {
       return 0
     }
 
+    case 'judge': {
+      if (!hasApiKey()) {
+        process.stderr.write('ANTHROPIC_API_KEY not set\n')
+        return 1
+      }
+      const limit = flag('limit') ? Number(flag('limit')) : undefined
+      const runtime = flag('runtime') as Runtime | undefined
+      process.stderr.write('Judging unjudged items…\n')
+      const result = await judgeUnjudged({
+        runtime,
+        limit,
+        onProgress: (n, total, name) => {
+          process.stderr.write(`  [${n}/${total}] ${name}\n`)
+        },
+      })
+      if (args.includes('--json')) {
+        process.stdout.write(JSON.stringify(result) + '\n')
+      } else {
+        process.stderr.write(`Done. ${result.judged} judged, ${result.failed} failed.\n`)
+      }
+      return 0
+    }
+
     case 'snooze': {
       const id = args[0]
       if (!id) {
@@ -97,7 +122,7 @@ async function main(): Promise<number> {
     }
 
     default:
-      process.stderr.write('Usage: agent-harness <scan|list|doctor|export|snooze> [...flags]\n')
+      process.stderr.write('Usage: agent-harness <scan|list|doctor|export|snooze|judge> [...flags]\n')
       return 1
   }
 }

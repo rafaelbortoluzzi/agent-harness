@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
-import { and, desc, eq, notInArray } from 'drizzle-orm'
+import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm'
 import { getDb } from './db'
-import { items, repos, scans, snoozedItems } from './schema'
+import { items, recommendations, repos, scans, snoozedItems } from './schema'
 import type {
   Health,
   ItemType,
@@ -165,4 +165,55 @@ export function unsnoozeItem(itemId: string): void {
 
 export function getSnoozed(): string[] {
   return getDb().select({ id: snoozedItems.itemId }).from(snoozedItems).all().map(r => r.id)
+}
+
+export function setVerdict(itemId: string, score: number, rationale: string): void {
+  getDb()
+    .update(items)
+    .set({
+      qualityScore: score,
+      qualityRationale: rationale,
+      judgedAt: new Date().toISOString(),
+    })
+    .where(eq(items.id, itemId))
+    .run()
+}
+
+export function getUnjudgedItems(types: string[], limit?: number): RegistryItem[] {
+  let q = getDb()
+    .select()
+    .from(items)
+    .where(and(isNull(items.judgedAt), sql`${items.type} IN (${sql.join(types.map(t => sql`${t}`), sql`, `)})`))
+    .orderBy(desc(items.scannedAt))
+    .$dynamic()
+  if (limit) q = q.limit(limit)
+  return q.all() as RegistryItem[]
+}
+
+export function upsertRecommendation(rec: {
+  id: string
+  repoPath: string
+  kind: 'skill' | 'agent' | 'hook'
+  name: string
+  rationale: string
+}): void {
+  getDb()
+    .insert(recommendations)
+    .values({ ...rec, createdAt: new Date().toISOString() })
+    .onConflictDoUpdate({
+      target: recommendations.id,
+      set: { rationale: rec.rationale, createdAt: new Date().toISOString() },
+    })
+    .run()
+}
+
+export function getRecommendations(repoPath?: string) {
+  const q = getDb().select().from(recommendations).orderBy(desc(recommendations.createdAt))
+  return repoPath
+    ? q.where(eq(recommendations.repoPath, repoPath)).all()
+    : q.all()
+}
+
+export function clearRecommendations(repoPath: string): void {
+  getDb().delete(recommendations).where(eq(recommendations.repoPath, repoPath)).run()
 }

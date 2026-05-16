@@ -14,6 +14,9 @@ export interface PanelItem {
   repoPath: string | null
   metadata: Record<string, unknown>
   scannedAt: string
+  qualityScore?: number | null
+  qualityRationale?: string | null
+  judgedAt?: string | null
 }
 
 export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () => void }) {
@@ -38,6 +41,33 @@ export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () 
           <div className="text-xs text-muted-foreground mb-1">Path</div>
           <div className="font-mono text-xs break-all bg-muted p-2 rounded">{item.path}</div>
         </div>
+
+        {item.qualityScore !== null && item.qualityScore !== undefined && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Quality (LLM)</div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded text-sm font-mono font-bold ${
+                  item.qualityScore >= 7
+                    ? 'bg-green-100 text-green-800'
+                    : item.qualityScore >= 4
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {item.qualityScore}/10
+              </span>
+              {item.judgedAt && (
+                <span className="text-xs text-muted-foreground">
+                  {new Date(item.judgedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            {item.qualityRationale && (
+              <p className="text-xs text-muted-foreground mt-2 italic">{item.qualityRationale}</p>
+            )}
+          </div>
+        )}
 
         {item.issues.length > 0 && (
           <div>

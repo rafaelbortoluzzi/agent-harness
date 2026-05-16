@@ -106,7 +106,7 @@ export default function InventoryPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              {['Name', 'Runtime', 'Type', 'Scope', 'Health', 'Repo'].map(h => (
+              {['Name', 'Runtime', 'Type', 'Scope', 'Health', 'Quality', 'Repo'].map(h => (
                 <th key={h} className="text-left px-3 py-2 font-medium">{h}</th>
               ))}
             </tr>
@@ -123,6 +123,11 @@ export default function InventoryPage() {
                 <td className="px-3 py-2">{item.type}</td>
                 <td className="px-3 py-2 text-muted-foreground">{item.scope}</td>
                 <td className="px-3 py-2"><HealthBadge health={item.health} /></td>
+                <td className="px-3 py-2 text-xs font-mono">
+                  {item.qualityScore !== null && item.qualityScore !== undefined
+                    ? `${item.qualityScore}/10`
+                    : '—'}
+                </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-xs">
                   {item.repoPath?.split('/').pop() ?? '—'}
                 </td>
@@ -130,7 +135,7 @@ export default function InventoryPage() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
                   No items found.
                 </td>
               </tr>

@@ -15,6 +15,18 @@ export const items = sqliteTable('items', {
     .$type<Record<string, unknown>>()
     .default({}),
   scannedAt: text('scanned_at').notNull(),
+  qualityScore: integer('quality_score'),
+  qualityRationale: text('quality_rationale'),
+  judgedAt: text('judged_at'),
+})
+
+export const recommendations = sqliteTable('recommendations', {
+  id: text('id').primaryKey(),
+  repoPath: text('repo_path').notNull(),
+  kind: text('kind', { enum: ['skill', 'agent', 'hook'] }).notNull(),
+  name: text('name').notNull(),
+  rationale: text('rationale').notNull(),
+  createdAt: text('created_at').notNull(),
 })
 
 export const scans = sqliteTable('scans', {
