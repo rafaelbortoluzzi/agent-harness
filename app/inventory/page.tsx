@@ -31,6 +31,7 @@ export default function InventoryPage() {
   const [type, setType] = useState('all')
   const [offset, setOffset] = useState(0)
   const [selected, setSelected] = useState<PanelItem | null>(null)
+  const [showSnoozed, setShowSnoozed] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -49,12 +50,14 @@ export default function InventoryPage() {
     if (runtime !== 'all') p.set('runtime', runtime)
     if (health !== 'all') p.set('health', health)
     if (type !== 'all') p.set('type', type)
+    if (showSnoozed) p.set('excludeSnoozed', 'false')
     p.set('limit', String(PAGE_SIZE))
     p.set('offset', String(offset))
     return p.toString()
-  }, [runtime, health, type, offset])
+  }, [runtime, health, type, showSnoozed, offset])
 
-  const { data: items = [] } = useSWR<PanelItem[]>(`/api/registry?${params}`, fetcher)
+  const itemsRequest = useSWR<PanelItem[]>(`/api/registry?${params}`, fetcher)
+  const { data: items = [] } = itemsRequest
 
   const filtered = useMemo(
     () =>
@@ -100,6 +103,16 @@ export default function InventoryPage() {
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground">{filtered.length} items</span>
+        <Button
+          size="sm"
+          variant={showSnoozed ? 'secondary' : 'outline'}
+          onClick={() => {
+            setShowSnoozed(value => !value)
+            setOffset(0)
+          }}
+        >
+          Show snoozed
+        </Button>
       </div>
 
       <div className="border rounded-md overflow-hidden">
@@ -166,7 +179,16 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      {selected && <ItemSidePanel item={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ItemSidePanel
+          item={selected}
+          onClose={() => setSelected(null)}
+          onChanged={() => {
+            void itemsRequest.mutate()
+            setSelected(null)
+          }}
+        />
+      )}
     </div>
   )
 }

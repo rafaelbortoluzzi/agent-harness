@@ -95,7 +95,14 @@ export function startScan(): string {
 
 export function finishScan(
   id: string,
-  stats: { reposScanned: number; itemsFound: number; itemsBroken: number },
+  stats: {
+    reposScanned: number
+    itemsFound: number
+    itemsBroken: number
+    itemsNew?: number
+    itemsRemoved?: number
+    itemsChanged?: number
+  },
 ): void {
   getDb()
     .update(scans)
@@ -105,6 +112,9 @@ export function finishScan(
       reposScanned: stats.reposScanned,
       itemsFound: stats.itemsFound,
       itemsBroken: stats.itemsBroken,
+      itemsNew: stats.itemsNew ?? 0,
+      itemsRemoved: stats.itemsRemoved ?? 0,
+      itemsChanged: stats.itemsChanged ?? 0,
     })
     .where(eq(scans.id, id))
     .run()
@@ -179,6 +189,10 @@ export function unsnoozeItem(itemId: string): void {
 
 export function getSnoozed(): string[] {
   return getDb().select({ id: snoozedItems.itemId }).from(snoozedItems).all().map(r => r.id)
+}
+
+export function getSnooze(itemId: string) {
+  return getDb().select().from(snoozedItems).where(eq(snoozedItems.itemId, itemId)).get() ?? null
 }
 
 export function setVerdict(itemId: string, score: number, rationale: string): void {

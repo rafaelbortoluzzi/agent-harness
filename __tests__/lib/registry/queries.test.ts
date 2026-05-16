@@ -12,7 +12,9 @@ import {
   getScan,
   snoozeItem,
   getSnoozed,
+  getSnooze,
   deleteItemsMissingFromScan,
+  unsnoozeItem,
 } from '@/lib/registry/queries'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
@@ -99,13 +101,37 @@ describe('queries', () => {
     expect(getItems({ health: 'broken' })).toHaveLength(2)
   })
 
+  it('returns and clears snooze details for an item', () => {
+    snoozeItem('x', 'needs upstream fix', '2026-05-20T00:00:00.000Z')
+
+    expect(getSnooze('x')).toMatchObject({
+      itemId: 'x',
+      reason: 'needs upstream fix',
+      untilDate: '2026-05-20T00:00:00.000Z',
+    })
+
+    unsnoozeItem('x')
+
+    expect(getSnooze('x')).toBeNull()
+  })
+
   it('scan lifecycle: start → finish → status done', () => {
     const id = startScan()
-    finishScan(id, { reposScanned: 2, itemsFound: 5, itemsBroken: 1 })
+    finishScan(id, {
+      reposScanned: 2,
+      itemsFound: 5,
+      itemsBroken: 1,
+      itemsNew: 2,
+      itemsRemoved: 1,
+      itemsChanged: 3,
+    })
     const scan = getScan(id)
     expect(scan?.status).toBe('done')
     expect(scan?.itemsFound).toBe(5)
     expect(scan?.itemsBroken).toBe(1)
+    expect(scan?.itemsNew).toBe(2)
+    expect(scan?.itemsRemoved).toBe(1)
+    expect(scan?.itemsChanged).toBe(3)
   })
 
   it('failScan stores error and status', () => {

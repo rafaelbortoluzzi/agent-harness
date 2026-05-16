@@ -4,6 +4,13 @@ import useSWR from 'swr'
 import { HealthBadge } from './health-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
 
@@ -24,18 +31,79 @@ export interface PanelItem {
   judgedAt?: string | null
 }
 
-export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () => void }) {
+interface SnoozeState {
+  snooze: {
+    itemId: string
+    reason: string | null
+    untilDate: string | null
+  } | null
+}
+
+export function ItemSidePanel({
+  item,
+  onClose,
+  onChanged,
+}: {
+  item: PanelItem
+  onClose: () => void
+  onChanged?: () => void
+}) {
   const { data: config } = useSWR<{ llmConnected: boolean }>('/api/config', fetcher)
+  const snooze = useSWR<SnoozeState>(`/api/snooze?itemId=${encodeURIComponent(item.id)}`, fetcher)
   const [showEditor, setShowEditor] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [streamed, setStreamed] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [applied, setApplied] = useState(false)
+  const [snoozeDays, setSnoozeDays] = useState('7')
+  const [snoozeReason, setSnoozeReason] = useState('')
+  const [snoozing, setSnoozing] = useState(false)
 
   const canEdit =
     config?.llmConnected &&
     ['skill', 'agent', 'rule', 'command', 'instruction'].includes(item.type)
+
+  const refreshAfterSnooze = async () => {
+    await snooze.mutate()
+    onChanged?.()
+  }
+
+  const saveSnooze = async () => {
+    setSnoozing(true)
+    setError(null)
+    try {
+      const resp = await fetch('/api/snooze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: item.id,
+          days: Number(snoozeDays),
+          reason: snoozeReason,
+        }),
+      })
+      if (!resp.ok) setError(`Snooze failed: HTTP ${resp.status}`)
+      else await refreshAfterSnooze()
+    } finally {
+      setSnoozing(false)
+    }
+  }
+
+  const clearSnooze = async () => {
+    setSnoozing(true)
+    setError(null)
+    try {
+      const resp = await fetch('/api/snooze', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: item.id }),
+      })
+      if (!resp.ok) setError(`Unsnooze failed: HTTP ${resp.status}`)
+      else await refreshAfterSnooze()
+    } finally {
+      setSnoozing(false)
+    }
+  }
 
   const runEdit = async () => {
     setStreaming(true)
@@ -164,6 +232,51 @@ export function ItemSidePanel({ item, onClose }: { item: PanelItem; onClose: () 
 
         <div className="text-xs text-muted-foreground">
           Scanned: {new Date(item.scannedAt).toLocaleString()}
+        </div>
+
+        <div className="border-t pt-3 space-y-2">
+          <div className="text-xs text-muted-foreground">Snooze</div>
+          {snooze.data?.snooze ? (
+            <div className="space-y-2">
+              <div className="text-xs bg-muted p-2 rounded">
+                {snooze.data.snooze.untilDate
+                  ? `Until ${new Date(snooze.data.snooze.untilDate).toLocaleDateString()}`
+                  : 'No expiration'}
+                {snooze.data.snooze.reason && (
+                  <span className="block text-muted-foreground mt-1">
+                    {snooze.data.snooze.reason}
+                  </span>
+                )}
+              </div>
+              <Button size="sm" variant="outline" onClick={clearSnooze} disabled={snoozing}>
+                Unsnooze
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Select value={snoozeDays} onValueChange={v => setSnoozeDays(v ?? '7')}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 day</SelectItem>
+                    <SelectItem value="7">7 days</SelectItem>
+                    <SelectItem value="30">30 days</SelectItem>
+                    <SelectItem value="0">No expiry</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Reason"
+                  value={snoozeReason}
+                  onChange={e => setSnoozeReason(e.target.value)}
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={saveSnooze} disabled={snoozing}>
+                Snooze
+              </Button>
+            </div>
+          )}
         </div>
 
         {canEdit && (

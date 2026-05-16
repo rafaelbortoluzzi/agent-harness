@@ -9,6 +9,9 @@ interface Scan {
   reposScanned: number | null
   itemsFound: number | null
   itemsBroken: number | null
+  itemsNew: number | null
+  itemsRemoved: number | null
+  itemsChanged: number | null
   status: string
   error: string | null
 }
@@ -55,6 +58,10 @@ export default function ScanLogPage() {
                     ) : (
                       <span className="text-green-700">0 broken</span>
                     )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    +{scan.itemsNew ?? 0} new · -{scan.itemsRemoved ?? 0} removed ·{' '}
+                    {scan.itemsChanged ?? 0} changed
                   </div>
                   {scan.error && (
                     <div className="text-xs text-red-600 mt-1">Error: {scan.error}</div>

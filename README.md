@@ -41,9 +41,9 @@ CLI is the source of truth for CI integration. UI is a view layer.
 ## UI
 
 - **Dashboard** — health score per repo, broken items, "Scan Now" + "Judge with LLM"
-- **Inventory** — filterable + paginated table with debounced search; row → side panel with quality score + "Edit with Claude" stream + apply
+- **Inventory** — filterable + paginated table with debounced search; row → side panel with quality score, snooze controls, and "Edit with Claude" stream + apply
 - **Recommendations** — LLM gap analyst output per repo, "Analyze All Repos" button
-- **Scan Log** — chronological scan history with duration + status
+- **Scan Log** — chronological scan history with duration, status, and per-scan new/removed/changed item counts
 - **Settings** — discovery roots, explicit repos, depth, LLM key status
 
 ## Supported Runtimes
@@ -84,8 +84,6 @@ next development slice.
 
 Phase 3 ideas:
 
-- Per-scan diff (new/changed/removed items) in Scan Log
-- Snooze UI (currently CLI-only)
 - Create skill from recommendation
 - Watch mode status indicator
 - Remote registry for team-wide inventory

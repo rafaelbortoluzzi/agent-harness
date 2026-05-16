@@ -15,6 +15,13 @@
       "when": 1778964083539,
       "tag": "0001_phase2",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778976000000,
+      "tag": "0002_scan_diff",
+      "breakpoints": true
     }
   ]
 }

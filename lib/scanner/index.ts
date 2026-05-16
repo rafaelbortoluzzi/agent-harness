@@ -3,12 +3,14 @@ import {
   deleteItemsMissingFromScan,
   failScan,
   finishScan,
+  getItems,
   startScan,
   updateRepoHealth,
   upsertItem,
   upsertRepo,
 } from '@/lib/registry/queries'
 import { computeHealthScore } from '@/lib/health'
+import { computeScanDiff } from './diff'
 import { CompletenessValidator } from '@/lib/validators/completeness'
 import { DuplicatesValidator } from '@/lib/validators/duplicates'
 import { PathExistsValidator } from '@/lib/validators/path-exists'
@@ -49,35 +51,44 @@ export async function runScan(
     for (const { items } of repoResults) allItems.push(...items)
     onProgress?.(`Collected ${allItems.length} items`)
 
+    const previousItems = getItems({})
     const pathV = new PathExistsValidator()
     const dupV = new DuplicatesValidator(allItems)
     const compV = new CompletenessValidator()
+    const validatedItems: RegistryItem[] = []
 
     for (const item of allItems) {
       const results = [pathV.validate(item), dupV.validate(item), compV.validate(item)]
       const issues = results.flatMap(r => r.issues)
       const broken = results.some(r => r.health === 'broken')
       const warning = results.some(r => r.health === 'warning')
-      upsertItem({
+      const validatedItem = {
         ...item,
         health: broken ? 'broken' : warning ? 'warning' : 'ok',
         issues,
-      })
+      } satisfies RegistryItem
+      validatedItems.push(validatedItem)
+      upsertItem(validatedItem)
     }
-    deleteItemsMissingFromScan(allItems.map(item => item.id))
+    const diff = computeScanDiff(previousItems, validatedItems)
+    deleteItemsMissingFromScan(validatedItems.map(item => item.id))
 
-    for (const { repoPath, items } of repoResults) {
-      updateRepoHealth(repoPath, computeHealthScore(items))
+    for (const { repoPath } of repoResults) {
+      updateRepoHealth(
+        repoPath,
+        computeHealthScore(validatedItems.filter(item => item.repoPath === repoPath)),
+      )
     }
 
-    const brokenCount = allItems.filter(i => i.health === 'broken').length
+    const brokenCount = validatedItems.filter(i => i.health === 'broken').length
     finishScan(id, {
       reposScanned: repos.length,
-      itemsFound: allItems.length,
+      itemsFound: validatedItems.length,
       itemsBroken: brokenCount,
+      ...diff,
     })
 
-    return { scanId: id, itemCount: allItems.length, brokenCount }
+    return { scanId: id, itemCount: validatedItems.length, brokenCount }
   } catch (err) {
     failScan(id, (err as Error).message)
     throw err

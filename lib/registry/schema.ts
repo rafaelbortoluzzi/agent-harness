@@ -36,6 +36,9 @@ export const scans = sqliteTable('scans', {
   reposScanned: integer('repos_scanned').default(0),
   itemsFound: integer('items_found').default(0),
   itemsBroken: integer('items_broken').default(0),
+  itemsNew: integer('items_new').default(0),
+  itemsRemoved: integer('items_removed').default(0),
+  itemsChanged: integer('items_changed').default(0),
   status: text('status', { enum: ['running', 'done', 'error'] }).notNull().default('running'),
   error: text('error'),
 })

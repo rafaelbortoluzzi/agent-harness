@@ -16,13 +16,15 @@ hooks, MCPs, instructions, plugins, and rules.
 | 1a - Scanner, registry, CLI | Done | v0.1.0 |
 | 1b - UI, API, CI | Done | v0.1.0 |
 | 2 - LLM judge, gap analyst, editor, watch mode | Done | v0.2.0 |
+| 3a - Per-scan registry diff in Scan Log | Done | unreleased |
+| 3b - Snooze UI | Done | unreleased |
 
 Confirmed locally on 2026-05-16:
 
-- Tests: 66 passing.
+- Tests: 72 passing.
 - Build: passing.
 - Lint: passing.
-- Routes: 15 generated routes.
+- Routes: 16 generated app routes.
 - Tags: v0.1.0, v0.2.0.
 - Package version: 0.2.0.
 - CLI: available for scan, list, doctor, export, snooze, judge, analyze, watch.
@@ -54,6 +56,12 @@ Confirmed locally on 2026-05-16:
 - LLM smoke is blocked until `ANTHROPIC_API_KEY` is exported in the shell used
   to run Agent Harness.
 - Cleaned up snoozes for stale registry items during successful scans.
+- Added per-scan diff counters for new, removed, and changed registry items,
+  persisted them on scan completion, and surfaced them in Scan Log.
+- Fixed scan summaries to count broken items and repo health from validated
+  registry items rather than pre-validation adapter output.
+- Added `/api/snooze` plus Inventory/side-panel controls to snooze and
+  unsnooze items without using the CLI.
 
 ## Immediate Next Work
 
@@ -65,14 +73,12 @@ Confirmed locally on 2026-05-16:
    - editor stream/apply end to end
 3. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-4. Start Phase 3 with per-scan diff in Scan Log.
+4. Continue Phase 3 with "Create skill from recommendation".
 
 ## Phase 3 Backlog
 
 | Item | Effort | Value |
 | --- | --- | --- |
-| Per-scan diff for new, removed, and changed items in Scan Log | M | High - exposes drift |
-| Snooze UI for currently CLI-only snooze support | S | Medium |
 | Create skill from recommendation button | M | High - closes gap analysis loop |
 | Watch mode status indicator in header UI | S | Low |
 | Additional adapters: Cursor `.cursorrules`, Aider, Continue | M each | Medium |
