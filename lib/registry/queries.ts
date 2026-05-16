@@ -45,6 +45,12 @@ export function deleteItemsMissingFromScan(currentItemIds: string[]): number {
   const result = currentItemIds.length
     ? query.where(notInArray(items.id, currentItemIds)).run()
     : query.run()
+  const snoozeQuery = getDb().delete(snoozedItems)
+  if (currentItemIds.length) {
+    snoozeQuery.where(notInArray(snoozedItems.itemId, currentItemIds)).run()
+  } else {
+    snoozeQuery.run()
+  }
   return result.changes
 }
 

@@ -11,6 +11,7 @@ import {
   failScan,
   getScan,
   snoozeItem,
+  getSnoozed,
   deleteItemsMissingFromScan,
 } from '@/lib/registry/queries'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
@@ -68,6 +69,17 @@ describe('queries', () => {
 
     expect(removed).toBe(1)
     expect(getItems({}).map(i => i.id)).toEqual(['kept'])
+  })
+
+  it('removes snoozes for items that are missing from the latest scan', () => {
+    upsertItem(item({ id: 'kept', name: 'kept' }))
+    upsertItem(item({ id: 'stale', name: 'stale' }))
+    snoozeItem('kept', 'still relevant', null)
+    snoozeItem('stale', 'obsolete', null)
+
+    deleteItemsMissingFromScan(['kept'])
+
+    expect(getSnoozed()).toEqual(['kept'])
   })
 
   it('paginates results', () => {

@@ -19,7 +19,7 @@ hooks, MCPs, instructions, plugins, and rules.
 
 Confirmed locally on 2026-05-16:
 
-- Tests: 65 passing.
+- Tests: 66 passing.
 - Build: passing.
 - Lint: passing.
 - Routes: 15 generated routes.
@@ -51,6 +51,9 @@ Confirmed locally on 2026-05-16:
   repository is created manually.
 - Captured a real dashboard screenshot at
   `public/agent-harness-dashboard.png` and added it to the README.
+- LLM smoke is blocked until `ANTHROPIC_API_KEY` is exported in the shell used
+  to run Agent Harness.
+- Cleaned up snoozes for stale registry items during successful scans.
 
 ## Immediate Next Work
 
@@ -60,9 +63,8 @@ Confirmed locally on 2026-05-16:
    - judge end to end
    - gap analysis end to end
    - editor stream/apply end to end
-3. Decide whether stale registry cleanup should also cascade to snoozes,
-   recommendations, or quality history when those records reference deleted
-   items.
+3. Decide whether stale registry cleanup should also cascade to recommendations
+   when repos are removed.
 4. Start Phase 3 with per-scan diff in Scan Log.
 
 ## Phase 3 Backlog
@@ -89,8 +91,6 @@ Confirmed locally on 2026-05-16:
 - `/api/judge`, `/api/analyze`, and `/api/edit` have no rate limiting.
 - Recommendations can become orphaned if repos are removed without a later
   `analyzeAndPersist` cleanup.
-- Snoozes can become orphaned when their registry item is removed by stale item
-  cleanup.
 - Build emits a Next/Turbopack trace warning through the scanner import path:
   `next.config.ts -> lib/scanner/adapters/claude.ts -> lib/scanner/index.ts`.
 - Concurrent CLI commands can contend on SQLite and return `database is locked`.
