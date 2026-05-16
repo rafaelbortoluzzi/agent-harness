@@ -33,12 +33,15 @@ export function AppSidebar() {
             <SidebarMenu>
               {NAV.map(({ href, label, Icon }) => (
                 <SidebarMenuItem key={href}>
-                  <SidebarMenuButton asChild isActive={pathname === href}>
-                    <Link href={href}>
-                      <Icon className="size-4" />
-                      <span>{label}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <SidebarMenuButton
+                    isActive={pathname === href}
+                    render={
+                      <Link href={href}>
+                        <Icon className="size-4" />
+                        <span>{label}</span>
+                      </Link>
+                    }
+                  />
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

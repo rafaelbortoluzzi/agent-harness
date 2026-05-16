@@ -75,7 +75,7 @@ export default function InventoryPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <Select value={runtime} onValueChange={v => { setRuntime(v); setOffset(0) }}>
+        <Select value={runtime} onValueChange={v => { setRuntime(v ?? 'all'); setOffset(0) }}>
           <SelectTrigger className="w-36"><SelectValue placeholder="runtime" /></SelectTrigger>
           <SelectContent>
             {runtimes.map(r => (
@@ -83,7 +83,7 @@ export default function InventoryPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={health} onValueChange={v => { setHealth(v); setOffset(0) }}>
+        <Select value={health} onValueChange={v => { setHealth(v ?? 'all'); setOffset(0) }}>
           <SelectTrigger className="w-36"><SelectValue placeholder="health" /></SelectTrigger>
           <SelectContent>
             {HEALTH_OPTIONS.map(h => (
@@ -91,7 +91,7 @@ export default function InventoryPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={type} onValueChange={v => { setType(v); setOffset(0) }}>
+        <Select value={type} onValueChange={v => { setType(v ?? 'all'); setOffset(0) }}>
           <SelectTrigger className="w-36"><SelectValue placeholder="type" /></SelectTrigger>
           <SelectContent>
             {allTypes.map(t => (
