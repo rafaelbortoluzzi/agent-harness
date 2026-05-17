@@ -19,13 +19,14 @@ hooks, MCPs, instructions, plugins, and rules.
 | 3a - Per-scan registry diff in Scan Log | Done | unreleased |
 | 3b - Snooze UI | Done | unreleased |
 | 3c - Create skill from recommendation | Done | unreleased |
+| 3d - Watch mode status indicator | Done | unreleased |
 
 Confirmed locally on 2026-05-16:
 
-- Tests: 76 passing.
+- Tests: 80 passing.
 - Build: passing.
 - Lint: passing.
-- Routes: 17 generated app routes.
+- Routes: 18 generated app routes.
 - Tags: v0.1.0, v0.2.0.
 - Package version: 0.2.0.
 - CLI: available for scan, list, doctor, export, snooze, judge, analyze, watch.
@@ -66,6 +67,10 @@ Confirmed locally on 2026-05-16:
 - Added `/api/recommendations/create-skill` and a Recommendations page action
   that creates `.claude/skills/<name>/SKILL.md` drafts from skill
   recommendations.
+- Verified the create-skill recommendation flow in Browser with a temporary
+  recommendation, then removed the temporary registry row and draft skill.
+- Added watch status persistence, `/api/watch/status`, and a header indicator
+  that shows whether `pnpm cli watch` is running, stale, or off.
 
 ## Immediate Next Work
 
@@ -77,13 +82,12 @@ Confirmed locally on 2026-05-16:
    - editor stream/apply end to end
 3. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-4. Continue Phase 3 with watch mode status or additional adapters.
+4. Continue Phase 3 with additional adapters or Playwright E2E smoke.
 
 ## Phase 3 Backlog
 
 | Item | Effort | Value |
 | --- | --- | --- |
-| Watch mode status indicator in header UI | S | Low |
 | Additional adapters: Cursor `.cursorrules`, Aider, Continue | M each | Medium |
 | Remote registry for multi-developer sharing | L | High for teams |
 | Playwright E2E smoke for the main pages | M | Regression safety |
@@ -114,7 +118,7 @@ Missing or incomplete coverage:
 
 - LLM integration tests with mocked SDK and fixtures.
 - UI tests.
-- Watcher tests.
+- Watcher integration tests.
 - Editor stream tests.
 - CLI/SQLite concurrency behavior.
 

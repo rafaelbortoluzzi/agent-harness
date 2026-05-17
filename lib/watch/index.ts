@@ -4,6 +4,7 @@ import chokidar from 'chokidar'
 import { getConfig } from '@/lib/config'
 import { discoverRepos } from '@/lib/scanner/discovery'
 import { runScan } from '@/lib/scanner'
+import { clearWatchStatus, writeWatchStatus } from './status'
 
 export interface WatchOptions {
   debounceMs?: number
@@ -21,6 +22,14 @@ export async function startWatcher(opts: WatchOptions = {}): Promise<() => Promi
   const debounceMs = opts.debounceMs ?? 1500
   const config = getConfig()
   const repos = await discoverRepos(config)
+  const heartbeat = () =>
+    writeWatchStatus({
+      running: true,
+      pid: process.pid,
+      lastHeartbeatAt: new Date().toISOString(),
+    })
+  heartbeat()
+  const heartbeatTimer = setInterval(heartbeat, 15_000)
 
   const paths = [
     ...WATCH_PATTERNS,
@@ -60,6 +69,8 @@ export async function startWatcher(opts: WatchOptions = {}): Promise<() => Promi
 
   return async () => {
     if (pending) clearTimeout(pending)
+    clearInterval(heartbeatTimer)
+    clearWatchStatus()
     await watcher.close()
   }
 }

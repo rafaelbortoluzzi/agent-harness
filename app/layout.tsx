@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
+import { WatchStatusIndicator } from '@/components/watch-status-indicator'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SidebarInset>
             <header className="flex items-center gap-2 p-2 border-b">
               <SidebarTrigger />
+              <WatchStatusIndicator />
             </header>
             <main className="flex-1 p-6 overflow-auto">{children}</main>
           </SidebarInset>

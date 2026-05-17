@@ -41,6 +41,7 @@ CLI is the source of truth for CI integration. UI is a view layer.
 ## UI
 
 - **Dashboard** — health score per repo, broken items, "Scan Now" + "Judge with LLM"
+- **Header** — watch daemon status indicator for `pnpm cli watch`
 - **Inventory** — filterable + paginated table with debounced search; row → side panel with quality score, snooze controls, and "Edit with Claude" stream + apply
 - **Recommendations** — LLM gap analyst output per repo, "Analyze All Repos" button, and one-click skill draft creation
 - **Scan Log** — chronological scan history with duration, status, and per-scan new/removed/changed item counts
@@ -75,7 +76,7 @@ All optional. Activated by setting `ANTHROPIC_API_KEY` in the shell environment.
 - **Judge** — `pnpm cli judge` scores each skill/agent/rule/command 0-10 with one-sentence rationale (Claude Sonnet 4.6, prompt-cached system message). Dashboard exposes a Judge button.
 - **Gap analyst** — `pnpm cli analyze` asks Claude to recommend up to 5 missing skills/agents per repo based on the existing inventory. Output rendered at `/recommendations`.
 - **Skill editor** — In the inventory side panel, "Edit with Claude" streams an edited file body via NDJSON. Apply writes atomically (tmp + rename).
-- **Watch** — `pnpm cli watch` runs a chokidar daemon over `~/.claude/`, `~/.codex/`, and `<repo>/.claude/`, debounced to 1.5s, triggering a full rescan on change.
+- **Watch** — `pnpm cli watch` runs a chokidar daemon over `~/.claude/`, `~/.codex/`, and `<repo>/.claude/`, debounced to 1.5s, triggering a full rescan on change. The header polls local watch status and shows on/stale/off.
 
 ## Roadmap
 
@@ -84,6 +85,5 @@ next development slice.
 
 Phase 3 ideas:
 
-- Watch mode status indicator
 - Remote registry for team-wide inventory
 - Adapters for additional runtimes (Cursor, Aider, Continue)
