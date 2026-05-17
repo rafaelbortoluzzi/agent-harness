@@ -80,6 +80,10 @@ export function getItems(filter: ItemFilter = {}, page: Page = {}): RegistryItem
   return q.all() as RegistryItem[]
 }
 
+export function getItemById(id: string): RegistryItem | null {
+  return (getDb().select().from(items).where(eq(items.id, id)).get() as RegistryItem | undefined) ?? null
+}
+
 export function countItems(filter: ItemFilter = {}): number {
   return getDb().select().from(items).where(buildWhere(filter)).all().length
 }

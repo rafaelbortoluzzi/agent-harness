@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasApiKey } from '@/lib/llm/client'
 import { applyEdit, streamEdit } from '@/lib/llm/editor'
-import { getItems } from '@/lib/registry/queries'
+import { getItemById } from '@/lib/registry/queries'
 
 export async function POST(req: NextRequest) {
   if (!hasApiKey()) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const { itemId, prompt, apply, content } = await req.json()
 
   if (apply) {
-    const item = getItems({}).find(i => i.id === itemId)
+    const item = getItemById(itemId)
     if (!item) return NextResponse.json({ error: 'item not found' }, { status: 404 })
     try {
       applyEdit(item, content as string)
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const item = getItems({}).find(i => i.id === itemId)
+  const item = getItemById(itemId)
   if (!item) return NextResponse.json({ error: 'item not found' }, { status: 404 })
 
   const encoder = new TextEncoder()

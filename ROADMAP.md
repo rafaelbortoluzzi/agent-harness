@@ -23,7 +23,7 @@ hooks, MCPs, instructions, plugins, and rules.
 
 Confirmed locally on 2026-05-16:
 
-- Tests: 80 passing.
+- Tests: 81 passing.
 - Build: passing.
 - Lint: passing.
 - Routes: 18 generated app routes.
@@ -71,18 +71,21 @@ Confirmed locally on 2026-05-16:
   recommendation, then removed the temporary registry row and draft skill.
 - Added watch status persistence, `/api/watch/status`, and a header indicator
   that shows whether `pnpm cli watch` is running, stale, or off.
+- Created the public GitHub repo at
+  `https://github.com/rafaelbortoluzzi/agent-harness`, pushed `main`, and
+  pushed tags `v0.1.0` and `v0.2.0`.
+- Added a dedicated `getItemById` registry query and switched `/api/edit` away
+  from full-list lookups.
 
 ## Immediate Next Work
 
-1. Create GitHub repo and push `main` plus tags once `gh` is available or a
-   remote URL is provided.
-2. Run real LLM smoke with `ANTHROPIC_API_KEY` set:
+1. Run real LLM smoke with `ANTHROPIC_API_KEY` set:
    - judge end to end
    - gap analysis end to end
    - editor stream/apply end to end
-3. Decide whether stale registry cleanup should also cascade to recommendations
+2. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-4. Continue Phase 3 with additional adapters or Playwright E2E smoke.
+3. Continue Phase 3 with additional adapters or Playwright E2E smoke.
 
 ## Phase 3 Backlog
 
@@ -98,8 +101,6 @@ Confirmed locally on 2026-05-16:
 
 - `lib/scanner/index.ts` uses singleton adapter instances, which makes adapter
   mocking awkward. Refactor toward factory injection.
-- `/api/edit` uses `getItems({}).find(...)`; add and use a dedicated
-  `getItemById` query.
 - `judgeUnjudged` uses fixed concurrency of 4; make this configurable.
 - `/api/judge`, `/api/analyze`, and `/api/edit` have no rate limiting.
 - Recommendations can become orphaned if repos are removed without a later

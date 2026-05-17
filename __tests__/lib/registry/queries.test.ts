@@ -5,6 +5,7 @@ import { resetDbForTests } from '@/lib/registry/db'
 import {
   upsertItem,
   getItems,
+  getItemById,
   countItems,
   startScan,
   finishScan,
@@ -61,6 +62,14 @@ describe('queries', () => {
     expect(all).toHaveLength(1)
     expect(all[0].health).toBe('broken')
     expect(all[0].issues).toEqual(['x'])
+  })
+
+  it('gets one registry item by id', () => {
+    upsertItem(item({ id: 'wanted', name: 'wanted' }))
+    upsertItem(item({ id: 'other', name: 'other' }))
+
+    expect(getItemById('wanted')?.name).toBe('wanted')
+    expect(getItemById('missing')).toBeNull()
   })
 
   it('removes registry items that are missing from the latest scan', () => {
