@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getConfig, setConfig } from '@/lib/config'
+import { getLlmProviderName, hasLlmProvider } from '@/lib/llm/provider'
 
 export async function GET() {
   return NextResponse.json({
     ...getConfig(),
-    llmConnected: Boolean(process.env.ANTHROPIC_API_KEY),
+    llmConnected: hasLlmProvider(),
+    llmEditorConnected: Boolean(process.env.ANTHROPIC_API_KEY),
+    llmProvider: getLlmProviderName(),
   })
 }
 

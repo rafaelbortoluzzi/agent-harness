@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { getClient, MODEL } from './client'
+import { completeLlmText } from './provider'
 import { clearRecommendations, upsertRecommendation } from '@/lib/registry/queries'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
@@ -57,21 +57,15 @@ export function parseRecommendations(text: string): Recommendation[] {
 }
 
 export async function analyzeRepo(repoPath: string, items: RegistryItem[]): Promise<Recommendation[]> {
-  const client = getClient()
   const inventory = summarizeItems(items)
   const userPrompt = `Repo: ${repoPath}\n\nCurrent inventory:\n${inventory || '(empty)'}\n\nWhat's missing?`
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userPrompt }],
+  const text = await completeLlmText({
+    system: SYSTEM,
+    prompt: userPrompt,
+    maxTokens: 1024,
   })
 
-  const text = response.content
-    .map(c => (c.type === 'text' ? c.text : ''))
-    .join('')
-    .trim()
   return parseRecommendations(text)
 }
 

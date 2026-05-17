@@ -12,6 +12,8 @@ interface Config {
   respectGitignore: boolean
   healthWeights: Record<string, number>
   llmConnected: boolean
+  llmEditorConnected: boolean
+  llmProvider: string
 }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
@@ -150,8 +152,11 @@ export default function SettingsPage() {
         <CardHeader><CardTitle>LLM Integration (Phase 2)</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-2">
-            Set <code className="bg-muted px-1 rounded">ANTHROPIC_API_KEY</code> in your shell
-            environment to enable AI features.
+            Set <code className="bg-muted px-1 rounded">AGENT_HARNESS_LLM_PROVIDER</code> to
+            <code className="bg-muted px-1 rounded ml-1">claude-code-cli</code>,
+            <code className="bg-muted px-1 rounded ml-1">codex-cli</code>, or
+            <code className="bg-muted px-1 rounded ml-1">anthropic-api</code>. The API provider
+            also needs <code className="bg-muted px-1 rounded">ANTHROPIC_API_KEY</code>.
           </p>
           <div className="flex items-center gap-2">
             <div
@@ -160,9 +165,14 @@ export default function SettingsPage() {
               }`}
             />
             <span className="text-sm text-muted-foreground">
-              {cfg.llmConnected ? 'Connected' : 'Not configured'}
+              {cfg.llmConnected ? `Connected via ${cfg.llmProvider}` : `${cfg.llmProvider} not configured`}
             </span>
           </div>
+          {!cfg.llmEditorConnected && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Editor streaming still requires <code className="bg-muted px-1 rounded">ANTHROPIC_API_KEY</code>.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

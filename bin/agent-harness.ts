@@ -5,7 +5,7 @@ import path from 'path'
 import { runScan } from '@/lib/scanner'
 import { getItems, getRepos, snoozeItem } from '@/lib/registry/queries'
 import type { Health, ItemType, Runtime } from '@/lib/scanner/adapters/base'
-import { hasApiKey } from '@/lib/llm/client'
+import { getLlmProviderName, hasLlmProvider } from '@/lib/llm/provider'
 import { judgeUnjudged } from '@/lib/llm/judge-runner'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
 import { startWatcher } from '@/lib/watch'
@@ -88,8 +88,8 @@ async function main(): Promise<number> {
     }
 
     case 'judge': {
-      if (!hasApiKey()) {
-        process.stderr.write('ANTHROPIC_API_KEY not set\n')
+      if (!hasLlmProvider()) {
+        process.stderr.write(`LLM provider ${getLlmProviderName()} is not configured\n`)
         return 1
       }
       const limit = flag('limit') ? Number(flag('limit')) : undefined
@@ -111,8 +111,8 @@ async function main(): Promise<number> {
     }
 
     case 'analyze': {
-      if (!hasApiKey()) {
-        process.stderr.write('ANTHROPIC_API_KEY not set\n')
+      if (!hasLlmProvider()) {
+        process.stderr.write(`LLM provider ${getLlmProviderName()} is not configured\n`)
         return 1
       }
       const onlyRepo = flag('repo')

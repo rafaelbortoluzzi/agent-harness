@@ -48,7 +48,7 @@ export function ItemSidePanel({
   onClose: () => void
   onChanged?: () => void
 }) {
-  const { data: config } = useSWR<{ llmConnected: boolean }>('/api/config', fetcher)
+  const { data: config } = useSWR<{ llmEditorConnected: boolean }>('/api/config', fetcher)
   const snooze = useSWR<SnoozeState>(`/api/snooze?itemId=${encodeURIComponent(item.id)}`, fetcher)
   const [showEditor, setShowEditor] = useState(false)
   const [prompt, setPrompt] = useState('')
@@ -61,7 +61,7 @@ export function ItemSidePanel({
   const [snoozing, setSnoozing] = useState(false)
 
   const canEdit =
-    config?.llmConnected &&
+    config?.llmEditorConnected &&
     ['skill', 'agent', 'rule', 'command', 'instruction'].includes(item.type)
 
   const refreshAfterSnooze = async () => {

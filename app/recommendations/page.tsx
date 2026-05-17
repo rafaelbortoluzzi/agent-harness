@@ -15,6 +15,7 @@ interface Recommendation {
 
 interface Config {
   llmConnected: boolean
+  llmProvider: string
 }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
@@ -80,7 +81,7 @@ export default function RecommendationsPage() {
 
       {!config?.llmConnected && (
         <p className="text-sm text-muted-foreground">
-          Set <code className="bg-muted px-1 rounded">ANTHROPIC_API_KEY</code> to use the gap analyst.
+          Configure <code className="bg-muted px-1 rounded">AGENT_HARNESS_LLM_PROVIDER</code> to use the gap analyst.
         </p>
       )}
 

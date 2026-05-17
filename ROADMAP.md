@@ -21,9 +21,9 @@ hooks, MCPs, instructions, plugins, and rules.
 | 3c - Create skill from recommendation | Done | unreleased |
 | 3d - Watch mode status indicator | Done | unreleased |
 
-Confirmed locally on 2026-05-16:
+Confirmed locally on 2026-05-17:
 
-- Tests: 81 passing.
+- Tests: 89 passing.
 - Build: passing.
 - Lint: passing.
 - Routes: 18 generated app routes.
@@ -77,15 +77,25 @@ Confirmed locally on 2026-05-16:
 - Added a dedicated `getItemById` registry query and switched `/api/edit` away
   from full-list lookups.
 
+### 2026-05-17
+
+- Added selectable LLM providers through `AGENT_HARNESS_LLM_PROVIDER`:
+  `anthropic-api`, `claude-code-cli`, and `codex-cli`.
+- Switched judge and gap analysis to the provider abstraction so Claude Code CLI
+  and Codex CLI can run from local logged-in subscriptions instead of API
+  credits.
+- Kept inventory editor streaming on the Anthropic API path and exposed that
+  separately in UI config.
+- Verified tiny provider smokes and `pnpm cli judge --limit 1 --json` with both
+  `claude-code-cli` and `codex-cli`.
+
 ## Immediate Next Work
 
-1. Run real LLM smoke with `ANTHROPIC_API_KEY` set:
-   - judge end to end
-   - gap analysis end to end
-   - editor stream/apply end to end
-2. Decide whether stale registry cleanup should also cascade to recommendations
+1. Run gap analysis end to end with one CLI provider.
+2. Run editor stream/apply smoke with `ANTHROPIC_API_KEY` set.
+3. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-3. Continue Phase 3 with additional adapters or Playwright E2E smoke.
+4. Continue Phase 3 with additional adapters or Playwright E2E smoke.
 
 ## Phase 3 Backlog
 
@@ -112,8 +122,8 @@ Confirmed locally on 2026-05-16:
 ## Coverage
 
 Current tests cover config, database helpers, registry queries, Claude adapter,
-Codex adapter, discovery, validators, health scoring, judge parser, and gap
-parser.
+Codex adapter, discovery, validators, health scoring, LLM provider selection,
+judge parser, and gap parser.
 
 Missing or incomplete coverage:
 

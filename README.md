@@ -31,7 +31,7 @@ pnpm cli list --runtime claude    # list items, optionally filtered
 pnpm cli doctor                   # repo health summary; exit 1 if broken
 pnpm cli export <path>            # backup registry.db
 pnpm cli snooze <item-id> [--days N] [--reason TEXT]
-pnpm cli judge [--runtime X] [--limit N]      # LLM quality scores (needs key)
+pnpm cli judge [--runtime X] [--limit N]      # LLM quality scores
 pnpm cli analyze [--repo PATH]                # LLM gap recommendations
 pnpm cli watch                                # daemon: auto-scan on change
 ```
@@ -45,7 +45,7 @@ CLI is the source of truth for CI integration. UI is a view layer.
 - **Inventory** — filterable + paginated table with debounced search; row → side panel with quality score, snooze controls, and "Edit with Claude" stream + apply
 - **Recommendations** — LLM gap analyst output per repo, "Analyze All Repos" button, and one-click skill draft creation
 - **Scan Log** — chronological scan history with duration, status, and per-scan new/removed/changed item counts
-- **Settings** — discovery roots, explicit repos, depth, LLM key status
+- **Settings** — discovery roots, explicit repos, depth, LLM provider status
 
 ## Supported Runtimes
 
@@ -59,7 +59,7 @@ Add your own — see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Security
 
 - Next.js dev/start scripts bind to `127.0.0.1` only — never `0.0.0.0`
-- `ANTHROPIC_API_KEY` read server-side only; never exposed to the client
+- `ANTHROPIC_API_KEY` is read server-side only when using the API provider; never exposed to the client
 - SQLite registry stored at `~/.agent-harness/registry.db` with WAL + foreign keys
 
 ## Data
@@ -71,11 +71,15 @@ User data lives at `~/.agent-harness/` (override with `AGENT_HARNESS_DIR`):
 
 ## LLM Features (Phase 2)
 
-All optional. Activated by setting `ANTHROPIC_API_KEY` in the shell environment.
+All optional. Select a provider with `AGENT_HARNESS_LLM_PROVIDER`:
 
-- **Judge** — `pnpm cli judge` scores each skill/agent/rule/command 0-10 with one-sentence rationale (Claude Sonnet 4.6, prompt-cached system message). Dashboard exposes a Judge button.
-- **Gap analyst** — `pnpm cli analyze` asks Claude to recommend up to 5 missing skills/agents per repo based on the existing inventory. Output rendered at `/recommendations`.
-- **Skill editor** — In the inventory side panel, "Edit with Claude" streams an edited file body via NDJSON. Apply writes atomically (tmp + rename).
+- `claude-code-cli` — uses local `claude` CLI login for judge and gap analysis.
+- `codex-cli` — uses local `codex` CLI login for judge and gap analysis.
+- `anthropic-api` — default; uses `ANTHROPIC_API_KEY`.
+
+- **Judge** — `pnpm cli judge` scores each skill/agent/rule/command 0-10 with one-sentence rationale. Dashboard exposes a Judge button.
+- **Gap analyst** — `pnpm cli analyze` recommends up to 5 missing skills/agents per repo based on the existing inventory. Output rendered at `/recommendations`.
+- **Skill editor** — In the inventory side panel, "Edit with Claude" streams an edited file body via NDJSON. Apply writes atomically (tmp + rename). This still requires `ANTHROPIC_API_KEY`.
 - **Watch** — `pnpm cli watch` runs a chokidar daemon over `~/.claude/`, `~/.codex/`, and `<repo>/.claude/`, debounced to 1.5s, triggering a full rescan on change. The header polls local watch status and shows on/stale/off.
 
 ## Roadmap

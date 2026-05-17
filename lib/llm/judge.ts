@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { getClient, MODEL } from './client'
+import { completeLlmText } from './provider'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
 export interface Verdict {
@@ -50,20 +50,11 @@ export async function judgeItem(item: RegistryItem): Promise<Verdict> {
   const body = readBody(item)
   if (!body) return { score: 0, rationale: 'Empty or unreadable body' }
 
-  const client = getClient()
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 256,
-    system: [
-      { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
-    ],
-    messages: [{ role: 'user', content: buildUserPrompt(item, body) }],
+  const text = await completeLlmText({
+    system: SYSTEM,
+    prompt: buildUserPrompt(item, body),
+    maxTokens: 256,
   })
-
-  const text = response.content
-    .map(c => (c.type === 'text' ? c.text : ''))
-    .join('')
-    .trim()
 
   return parseVerdict(text)
 }
