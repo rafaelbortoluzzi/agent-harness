@@ -179,6 +179,46 @@
   --ah-bottom-h: 220px;
 }
 
+/* App scrollbars — keep native affordance, but inside the phosphor palette. */
+.ah-body,
+.ah-body * {
+  scrollbar-color: rgba(120, 200, 120, 0.34) var(--ah-bg-1);
+}
+
+.ah-body *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.ah-body *::-webkit-scrollbar-track {
+  background: var(--ah-bg-1);
+  border-left: 1px solid var(--ah-line);
+}
+
+.ah-body *::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(150, 225, 150, 0.38),
+      rgba(92, 150, 92, 0.42)
+    );
+  border: 2px solid var(--ah-bg-1);
+  border-radius: 999px;
+}
+
+.ah-body *::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(175, 245, 175, 0.52),
+      rgba(112, 180, 112, 0.56)
+    );
+}
+
+.ah-body *::-webkit-scrollbar-corner {
+  background: var(--ah-bg-1);
+}
+
 /* CRT scanlines + vignette — optional, toggled by .ah-crt class */
 .ah-crt::before{
   content:'';
@@ -212,8 +252,7 @@
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
 }
 
@@ -414,13 +453,15 @@
 
 .ah-tree {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow-y: scroll;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   padding: 4px 0 16px;
   font-size: 12px;
 }
 .ah-tree::-webkit-scrollbar { width: 8px; }
-.ah-tree::-webkit-scrollbar-thumb { background: var(--ah-line-2); }
+.ah-tree::-webkit-scrollbar-track { background: var(--ah-bg-0); }
 
 .ah-tree .ah-row {
   display: grid;
@@ -693,6 +734,139 @@
   overflow-x: hidden;
 }
 
+.ah-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 64px;
+}
+.ah-action-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  background: var(--ah-bg-2);
+  border: 1px solid var(--ah-line-3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  color: var(--ah-fg-1);
+}
+.ah-action-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--ah-line);
+}
+.ah-action-title {
+  color: var(--ah-fg-0);
+  font-size: 14px;
+  font-weight: 500;
+}
+.ah-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--ah-fg-4);
+  font-size: 10px;
+}
+.ah-action-meta span {
+  border: 1px solid var(--ah-line);
+  padding: 1px 6px;
+  border-radius: 2px;
+  max-width: 460px;
+  overflow-wrap: anywhere;
+}
+.ah-action-head button,
+.ah-dialog-footer button,
+.ah-scan-bulk button,
+.ah-scan-repo button {
+  background: transparent;
+  border: 1px solid var(--ah-line-2);
+  color: var(--ah-fg-2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 9px;
+  border-radius: 2px;
+}
+.ah-action-head button:hover,
+.ah-dialog-footer button:hover,
+.ah-scan-bulk button:hover,
+.ah-scan-repo button:hover {
+  color: var(--ah-fg-0);
+  background: var(--ah-bg-4);
+}
+.ah-provider-pick {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ah-line);
+  font-size: 11px;
+  color: var(--ah-fg-3);
+}
+.ah-provider-pick select,
+.ah-rec-controls select {
+  width: 100%;
+  background: var(--ah-bg-1);
+  border: 1px solid var(--ah-line-2);
+  color: var(--ah-fg-1);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 2px;
+}
+.ah-action-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+.ah-action-list button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--ah-fg-1);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 2px;
+}
+.ah-action-list button:hover {
+  background: var(--ah-bg-4);
+  color: var(--ah-fg-0);
+}
+.ah-action-list kbd {
+  color: var(--ah-fg-4);
+  border: 1px solid var(--ah-line);
+  background: var(--ah-bg-1);
+  padding: 1px 5px;
+  font-size: 10px;
+  border-radius: 2px;
+}
+.ah-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ah-line);
+}
+.ah-dialog-footer .primary {
+  background: var(--ah-bg-5);
+  border-color: var(--ah-line-3);
+  color: var(--ah-fg-0);
+}
+
 /* ============================================================
    Editor (Step 5)
    ============================================================ */
@@ -756,6 +930,165 @@
   flex: 1;
   min-height: 0;
   width: 100%;
+}
+
+.ah-md-preview,
+.ah-preview-doc {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 42px 56px;
+  color: var(--ah-fg-1);
+  line-height: 1.6;
+  max-width: 980px;
+}
+.ah-preview-page {
+  position: fixed;
+  inset: 0;
+  min-height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(120, 200, 120, 0.09), transparent 34rem),
+    var(--ah-bg-0);
+  color: var(--ah-fg-1);
+  font-family: var(--ah-font);
+  padding: 40px 24px 72px;
+}
+.ah-preview-header,
+.ah-preview-doc {
+  width: min(920px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+.ah-preview-header {
+  border-bottom: 1px solid var(--ah-line-2);
+  padding: 0 0 18px;
+}
+.ah-preview-header p {
+  margin: 0 0 8px;
+  color: var(--ah-fg-4);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.ah-preview-header h1 {
+  margin: 0;
+  color: var(--ah-fg-0);
+  font-size: 28px;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+.ah-preview-header span {
+  display: block;
+  margin-top: 10px;
+  color: var(--ah-fg-4);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ah-preview-doc {
+  display: block;
+  padding: 28px 0 0;
+  overflow: visible;
+}
+.ah-md-preview h1,
+.ah-md-preview h2,
+.ah-md-preview h3,
+.ah-md-preview h4,
+.ah-md-preview h5,
+.ah-md-preview h6,
+.ah-preview-doc h1,
+.ah-preview-doc h2,
+.ah-preview-doc h3,
+.ah-preview-doc h4,
+.ah-preview-doc h5,
+.ah-preview-doc h6 {
+  color: var(--ah-fg-0);
+  font-weight: 500;
+  margin: 18px 0 8px;
+}
+.ah-md-preview h1,
+.ah-preview-doc h1 { font-size: 28px; }
+.ah-md-preview h2,
+.ah-preview-doc h2 { font-size: 20px; border-bottom: 1px solid var(--ah-line); padding-bottom: 5px; }
+.ah-md-preview h3,
+.ah-preview-doc h3 { font-size: 16px; }
+.ah-md-preview h4,
+.ah-preview-doc h4 { font-size: 14px; }
+.ah-md-preview p,
+.ah-md-preview li,
+.ah-md-preview blockquote,
+.ah-preview-doc p,
+.ah-preview-doc li,
+.ah-preview-doc blockquote {
+  font-size: 13px;
+}
+.ah-md-preview a,
+.ah-preview-doc a {
+  color: var(--ah-blue);
+}
+.ah-md-preview code,
+.ah-preview-doc code {
+  background: var(--ah-bg-3);
+  border: 1px solid var(--ah-line);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.ah-md-preview pre,
+.ah-preview-doc pre {
+  background: var(--ah-bg-0);
+  border: 1px solid var(--ah-line-2);
+  padding: 12px 14px;
+  overflow: auto;
+}
+.ah-md-preview pre code,
+.ah-preview-doc pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.ah-md-preview blockquote,
+.ah-preview-doc blockquote {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--ah-line-3);
+  color: var(--ah-fg-2);
+  background: var(--ah-bg-2);
+}
+.ah-md-preview table,
+.ah-preview-doc table {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ah-md-preview th,
+.ah-md-preview td,
+.ah-preview-doc th,
+.ah-preview-doc td {
+  border: 1px solid var(--ah-line-2);
+  padding: 7px 9px;
+  vertical-align: top;
+}
+.ah-md-preview th,
+.ah-preview-doc th {
+  background: var(--ah-bg-4);
+  color: var(--ah-fg-0);
+  font-weight: 600;
+}
+.ah-md-preview tr:nth-child(even) td,
+.ah-preview-doc tr:nth-child(even) td {
+  background: rgba(120, 200, 120, 0.035);
+}
+.ah-md-preview hr,
+.ah-preview-doc hr {
+  border: 0;
+  border-top: 1px solid var(--ah-line-2);
+  margin: 22px 0;
+}
+.ah-md-preview img,
+.ah-preview-doc img {
+  max-width: 100%;
+  height: auto;
 }
 
 .ah-editor-grid {
@@ -1351,6 +1684,40 @@
   font-size: 12px;
   margin: 0 0 22px;
 }
+.ah-rec-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+  border: 1px solid var(--ah-line-2);
+  background: var(--ah-bg-2);
+  padding: 12px;
+  margin-bottom: 18px;
+}
+.ah-rec-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ah-fg-4);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ah-rec-controls button {
+  background: var(--ah-bg-5);
+  border: 1px solid var(--ah-line-3);
+  color: var(--ah-fg-0);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 2px;
+}
+.ah-rec-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .ah-rec-list {
   display: flex;
   flex-direction: column;
@@ -1618,6 +1985,36 @@
 .ah-provider-row button:disabled {
   color: var(--ah-fg-5);
   cursor: not-allowed;
+}
+
+.ah-scan-dialog { width: min(760px, calc(100vw - 32px)); }
+.ah-scan-bulk {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ah-line);
+}
+.ah-scan-repos {
+  max-height: 340px;
+  overflow: auto;
+}
+.ah-scan-repo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ah-line);
+  font-size: 11px;
+}
+.ah-scan-repo span {
+  color: var(--ah-fg-1);
+  overflow-wrap: anywhere;
+}
+.ah-scan-repo button.on {
+  color: var(--ah-fg-0);
+  background: var(--ah-bg-5);
+  border-color: var(--ah-line-3);
 }
 
 .ah-kb-table {

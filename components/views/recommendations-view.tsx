@@ -16,6 +16,19 @@ interface Recommendation {
 interface Config {
   llmConnected: boolean
   llmProvider: string
+  llmProviders?: { id: string; displayName: string; available: boolean; selected: boolean }[]
+}
+
+interface Repo {
+  path: string
+  label: string | null
+}
+
+interface Item {
+  id: string
+  name: string
+  type: string
+  repoPath: string | null
 }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
@@ -23,10 +36,28 @@ const fetcher = (u: string) => fetch(u).then(r => r.json())
 export function RecommendationsView() {
   const { data: recs = [], mutate } = useSWR<Recommendation[]>('/api/recommendations', fetcher)
   const { data: config } = useSWR<Config>('/api/config', fetcher)
+  const { data: repos = [] } = useSWR<Repo[]>('/api/registry?resource=repos', fetcher)
+  const { data: items = [] } = useSWR<Item[]>('/api/registry?limit=1000', fetcher)
   const [analyzing, setAnalyzing] = useState(false)
   const [creatingId, setCreatingId] = useState<string | null>(null)
   const [created, setCreated] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [provider, setProvider] = useState('')
+  const [scope, setScope] = useState<'all' | 'repo' | 'section' | 'unit'>('all')
+  const [repoPath, setRepoPath] = useState('')
+  const [itemType, setItemType] = useState('skill')
+  const [itemId, setItemId] = useState('')
+
+  const selectedProvider = provider || config?.llmProvider || ''
+  const selectedRepo = repoPath || repos[0]?.path || ''
+  const selectedItem = itemId || items[0]?.id || ''
+
+  const buildTarget = () => {
+    if (scope === 'repo') return { scope, repoPath: selectedRepo }
+    if (scope === 'section') return { scope, repoPath: selectedRepo, itemType }
+    if (scope === 'unit') return { scope, itemId: selectedItem }
+    return { scope: 'all' }
+  }
 
   const runAnalyze = async () => {
     setAnalyzing(true)
@@ -35,7 +66,7 @@ export function RecommendationsView() {
       await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify({ provider: selectedProvider, target: buildTarget() }),
       })
       await mutate()
     } finally {
@@ -68,28 +99,68 @@ export function RecommendationsView() {
       <h1>Recommendations</h1>
       <p className="ah-sub">
         LLM-detected gaps · {recs.length} suggested
-        {config?.llmConnected && (
-          <button
-            type="button"
-            onClick={() => void runAnalyze()}
-            disabled={analyzing}
-            style={{
-              float: 'right',
-              background: 'var(--ah-bg-5)',
-              border: '1px solid var(--ah-line-3)',
-              color: 'var(--ah-fg-0)',
-              fontFamily: 'inherit',
-              fontSize: 11,
-              padding: '4px 12px',
-              cursor: analyzing ? 'not-allowed' : 'pointer',
-              borderRadius: 2,
-              opacity: analyzing ? 0.5 : 1,
-            }}
-          >
-            {analyzing ? 'Analyzing…' : 'Analyze repos'}
-          </button>
-        )}
       </p>
+
+      {config?.llmConnected && (
+        <div className="ah-rec-controls">
+          <label>
+            <span>Provider</span>
+            <select value={selectedProvider} onChange={e => setProvider(e.target.value)}>
+              {(config.llmProviders ?? []).map(p => (
+                <option key={p.id} value={p.id} disabled={!p.available}>
+                  {p.displayName} ({p.id})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Scope</span>
+            <select value={scope} onChange={e => setScope(e.target.value as typeof scope)}>
+              <option value="all">All</option>
+              <option value="repo">Repo</option>
+              <option value="section">Section</option>
+              <option value="unit">Unit</option>
+            </select>
+          </label>
+          {(scope === 'repo' || scope === 'section') && (
+            <label>
+              <span>Repo</span>
+              <select value={selectedRepo} onChange={e => setRepoPath(e.target.value)}>
+                {repos.map(r => (
+                  <option key={r.path} value={r.path}>
+                    {r.label ?? r.path.split('/').pop()}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {scope === 'section' && (
+            <label>
+              <span>Section</span>
+              <select value={itemType} onChange={e => setItemType(e.target.value)}>
+                {Array.from(new Set(items.map(i => i.type))).map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {scope === 'unit' && (
+            <label>
+              <span>Unit</span>
+              <select value={selectedItem} onChange={e => setItemId(e.target.value)}>
+                {items.map(i => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} ({i.type})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button type="button" onClick={() => void runAnalyze()} disabled={analyzing}>
+            {analyzing ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
+      )}
 
       {!config?.llmConnected && (
         <p style={{ fontSize: 11, color: 'var(--ah-fg-4)' }}>

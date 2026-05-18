@@ -16,6 +16,14 @@ export type Tab =
   | { id: 'welcome'; kind: 'welcome'; name: string }
   | { id: 'recs'; kind: 'recs'; name: string }
   | { id: 'settings'; kind: 'settings'; name: string }
+  | {
+      id: string
+      kind: 'preview'
+      sourceId: string
+      type: string
+      name: string
+      path: string
+    }
   | { id: string; kind: 'editor'; type: string; name: string; path: string }
 
 export interface WorkspaceState {
@@ -129,6 +137,7 @@ interface WorkspaceContextValue {
   openRecs: () => void
   openSettings: () => void
   openEditor: (item: { id: string; name: string; type: string; path: string }) => void
+  openPreview: (item: { id: string; name: string; type: string; path: string }) => void
   closeTab: (id: string) => void
   reopenLast: () => void
   setCurrent: (id: string) => void
@@ -160,6 +169,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           id: item.id,
           kind: 'editor',
           name: item.name,
+          type: item.type,
+          path: item.path,
+        },
+      }),
+    [],
+  )
+  const openPreview = useCallback(
+    (item: { id: string; name: string; type: string; path: string }) =>
+      dispatch({
+        type: 'open-tab',
+        tab: {
+          id: `preview:${item.id}`,
+          kind: 'preview',
+          sourceId: item.id,
+          name: `${item.name} Preview`,
           type: item.type,
           path: item.path,
         },
@@ -200,6 +224,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openRecs,
       openSettings,
       openEditor,
+      openPreview,
       closeTab,
       reopenLast,
       setCurrent,
@@ -220,6 +245,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openRecs,
       openSettings,
       openEditor,
+      openPreview,
       closeTab,
       reopenLast,
       setCurrent,

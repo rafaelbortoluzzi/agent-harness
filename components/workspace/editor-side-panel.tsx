@@ -1,6 +1,6 @@
 'use client'
 import useSWR from 'swr'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PanelItem } from '@/components/item-side-panel'
 import { useWorkspace } from '@/lib/workspace/store'
 
@@ -33,6 +33,20 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
 
   const judged = item.qualityScore !== null && item.qualityScore !== undefined
   const scorePct = judged ? Math.min(100, Math.max(0, (item.qualityScore! / 10) * 100)) : 0
+
+  useEffect(() => {
+    const onImprove = (e: Event) => {
+      const detail = (e as CustomEvent<{ itemId: string }>).detail
+      if (detail?.itemId !== item.id) return
+      setEditing(true)
+      setApplied(false)
+      setPrompt(
+        'Improve this agent asset for clarity, concrete triggering conditions, and actionable steps. Preserve the existing format.',
+      )
+    }
+    window.addEventListener('ah:open-improve', onImprove)
+    return () => window.removeEventListener('ah:open-improve', onImprove)
+  }, [item.id])
 
   const snoozeFor = async (days: number) => {
     setSnoozing(true)

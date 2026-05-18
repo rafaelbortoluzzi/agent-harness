@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getItems, getRepos, getScans, type ItemFilter } from '@/lib/registry/queries'
+import {
+  deleteItemById,
+  deleteItemsByRepo,
+  deleteItemsByRepoAndType,
+  getItems,
+  getRepos,
+  getScans,
+  type ItemFilter,
+} from '@/lib/registry/queries'
 import type { Health, ItemType, Runtime, Scope } from '@/lib/scanner/adapters/base'
+import { normalizeActionTarget } from '@/lib/workspace/action-targets'
 
 export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams
@@ -20,4 +29,21 @@ export async function GET(req: NextRequest) {
   const offset = Number(sp.get('offset') ?? 0)
 
   return NextResponse.json(getItems(filter, { limit, offset }))
+}
+
+export async function DELETE(req: NextRequest) {
+  const body = await req.json().catch(() => ({}))
+  const target = normalizeActionTarget(body.target)
+  if (target.scope === 'unit') {
+    return NextResponse.json({ removed: deleteItemById(target.itemId) })
+  }
+  if (target.scope === 'section') {
+    return NextResponse.json({
+      removed: deleteItemsByRepoAndType(target.repoPath, target.itemType as ItemType),
+    })
+  }
+  if (target.scope === 'repo') {
+    return NextResponse.json({ removed: deleteItemsByRepo(target.repoPath) })
+  }
+  return NextResponse.json({ error: 'target required' }, { status: 400 })
 }

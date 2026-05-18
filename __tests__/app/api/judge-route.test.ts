@@ -6,6 +6,9 @@ import { judgeUnjudged } from '@/lib/llm/judge-runner'
 jest.mock('@/lib/llm/provider', () => ({
   getLlmProviderName: jest.fn(),
   hasLlmProvider: jest.fn(),
+  isLlmProviderName: jest.fn((value: unknown) =>
+    ['anthropic-api', 'openai-api', 'claude-code-cli', 'codex-cli'].includes(String(value)),
+  ),
 }))
 
 jest.mock('@/lib/llm/judge-runner', () => ({
@@ -48,6 +51,36 @@ describe('/api/judge', () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ judged: 1, failed: 0 })
-    expect(mockedJudgeUnjudged).toHaveBeenCalledWith({ runtime: undefined, limit: 1 })
+    expect(mockedJudgeUnjudged).toHaveBeenCalledWith({
+      runtime: undefined,
+      limit: 1,
+      provider: 'claude-code-cli',
+      target: { scope: 'all' },
+    })
+  })
+
+  it('runs judge for a selected provider and repo section target', async () => {
+    mockedGetLlmProviderName.mockReturnValue('anthropic-api')
+    mockedHasLlmProvider.mockReturnValue(true)
+    mockedJudgeUnjudged.mockResolvedValue({ judged: 2, failed: 0 })
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/judge', {
+        method: 'POST',
+        body: JSON.stringify({
+          provider: 'codex-cli',
+          target: { scope: 'section', repoPath: '/repo', itemType: 'skill' },
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockedHasLlmProvider).toHaveBeenCalledWith('codex-cli')
+    expect(mockedJudgeUnjudged).toHaveBeenCalledWith({
+      runtime: undefined,
+      limit: undefined,
+      provider: 'codex-cli',
+      target: { scope: 'section', repoPath: '/repo', itemType: 'skill' },
+    })
   })
 })

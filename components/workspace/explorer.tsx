@@ -17,6 +17,10 @@ import {
 import { type PanelItem } from '@/components/item-side-panel'
 import { useDebounce } from '@/lib/hooks/use-debounce'
 import { useWorkspace } from '@/lib/workspace/store'
+import {
+  ContextActionDialog,
+  type ContextActionRequest,
+} from './context-action-dialog'
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
 
@@ -74,7 +78,7 @@ const EMPTY_ITEMS: PanelItem[] = []
 export function Explorer() {
   const repos = useSWR<Repo[]>('/api/registry?resource=repos', fetcher)
   const items = useSWR<PanelItem[]>('/api/registry?limit=1000', fetcher)
-  const { state, openEditor } = useWorkspace()
+  const { state, openEditor, toggleSidePanel } = useWorkspace()
   const currentTabId = state.current
   const selected = useMemo(
     () => (items.data ?? EMPTY_ITEMS).find(i => i.id === currentTabId) ?? null,
@@ -86,6 +90,7 @@ export function Explorer() {
   const [filter, setFilter] = useState<FilterMode>('all')
   const [repoOverrides, setRepoOverrides] = useState<Map<string, boolean>>(new Map())
   const [groupOverrides, setGroupOverrides] = useState<Map<string, boolean>>(new Map())
+  const [actionTarget, setActionTarget] = useState<Parameters<typeof ContextActionDialog>[0]['target']>(null)
 
   const repoList = repos.data ?? EMPTY_REPOS
   const itemList = items.data ?? EMPTY_ITEMS
@@ -181,6 +186,55 @@ export function Explorer() {
     return [...repoList, ...extras]
   }, [repoList, grouped])
 
+  const runAction = async (request: ContextActionRequest) => {
+    const { id, provider, target, path, dialogTarget } = request
+    if (id === 'copy-path' && path) await navigator.clipboard?.writeText(path)
+    if (id === 'preview' && dialogTarget.kind === 'unit') {
+      window.open(`/preview?id=${encodeURIComponent(dialogTarget.item.id)}`, '_blank', 'noopener,noreferrer')
+    }
+    if (id === 'judge') {
+      await fetch('/api/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target }),
+      })
+      await items.mutate()
+    }
+    if (id === 'analyze') {
+      await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target }),
+      })
+    }
+    if (id === 'improve' && dialogTarget.kind === 'unit') {
+      openEditor({
+        id: dialogTarget.item.id,
+        name: dialogTarget.item.name,
+        type: dialogTarget.item.type,
+        path: dialogTarget.item.path,
+      })
+      if (state.sidePanelHidden) toggleSidePanel()
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('ah:open-improve', {
+            detail: { itemId: dialogTarget.item.id, provider },
+          }),
+        )
+      }, 0)
+    }
+    if (id === 'remove') {
+      await fetch('/api/registry', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target }),
+      })
+      await repos.mutate()
+      await items.mutate()
+    }
+    setActionTarget(null)
+  }
+
   return (
     <aside className="ah-explorer" aria-label="Explorer">
       <div className="ah-head">
@@ -242,7 +296,17 @@ export function Explorer() {
               <div
                 className="ah-row repo"
                 data-depth="0"
-                onClick={() => toggleRepo(repo.path)}
+                onClick={e => {
+                  if (e.altKey) {
+                    setActionTarget({ kind: 'repo', repoPath: repo.path, label: repoLabel(repo) })
+                    return
+                  }
+                  toggleRepo(repo.path)
+                }}
+                onContextMenu={e => {
+                  e.preventDefault()
+                  setActionTarget({ kind: 'repo', repoPath: repo.path, label: repoLabel(repo) })
+                }}
               >
                 <span className="ah-chev">
                   {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -266,7 +330,27 @@ export function Explorer() {
                       <div
                         className="ah-row group"
                         data-depth="1"
-                        onClick={() => toggleGroup(groupKey)}
+                        onClick={e => {
+                          if (e.altKey) {
+                            setActionTarget({
+                              kind: 'section',
+                              repoPath: repo.path,
+                              itemType: type,
+                              label: `${type}s`,
+                            })
+                            return
+                          }
+                          toggleGroup(groupKey)
+                        }}
+                        onContextMenu={e => {
+                          e.preventDefault()
+                          setActionTarget({
+                            kind: 'section',
+                            repoPath: repo.path,
+                            itemType: type,
+                            label: `${type}s`,
+                          })
+                        }}
                       >
                         <span className="ah-chev">
                           {gOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -287,14 +371,22 @@ export function Explorer() {
                               key={it.id}
                               className={`ah-row${sel ? ' sel focus' : ''}`}
                               data-depth="2"
-                              onClick={() =>
+                              onClick={e => {
+                                if (e.altKey) {
+                                  setActionTarget({ kind: 'unit', item: it })
+                                  return
+                                }
                                 openEditor({
                                   id: it.id,
                                   name: it.name,
                                   type: it.type,
                                   path: it.path,
                                 })
-                              }
+                              }}
+                              onContextMenu={e => {
+                                e.preventDefault()
+                                setActionTarget({ kind: 'unit', item: it })
+                              }}
                             >
                               <span className="ah-chev" />
                               <span className="ah-row-ico">
@@ -323,6 +415,16 @@ export function Explorer() {
           </div>
         )}
       </div>
+      <ContextActionDialog
+        open={Boolean(actionTarget)}
+        target={actionTarget}
+        onOpenChange={open => {
+          if (!open) setActionTarget(null)
+        }}
+        onAction={request => {
+          void runAction(request)
+        }}
+      />
     </aside>
   )
 }

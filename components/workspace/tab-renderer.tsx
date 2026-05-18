@@ -4,6 +4,7 @@ import { WelcomeView } from '@/components/views/welcome-view'
 import { RecommendationsView } from '@/components/views/recommendations-view'
 import { SettingsView } from '@/components/views/settings-view'
 import { Editor } from './editor'
+import { MarkdownPreview } from './markdown-preview'
 
 export function TabRenderer() {
   const { state } = useWorkspace()
@@ -37,6 +38,7 @@ export function TabRenderer() {
           </div>
         )}
         {tab.kind === 'editor' && <Editor tab={tab} />}
+        {tab.kind === 'preview' && <MarkdownPreview tab={tab} />}
       </div>
     </div>
   )

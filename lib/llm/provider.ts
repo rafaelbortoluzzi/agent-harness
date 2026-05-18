@@ -53,8 +53,7 @@ export function getLlmProviderName(): LlmProviderName {
   return DEFAULT_PROVIDER
 }
 
-export function hasLlmProvider(): boolean {
-  const provider = getLlmProviderName()
+export function hasLlmProvider(provider: LlmProviderName = getLlmProviderName()): boolean {
   return getProviderAvailability(provider).available
 }
 
@@ -97,7 +96,7 @@ export async function completeLlmText(options: CompleteLlmTextOptions): Promise<
   return completeLlmTextWithProvider(provider, options)
 }
 
-async function completeLlmTextWithProvider(
+export async function completeLlmTextWithProvider(
   provider: LlmProviderName,
   options: CompleteLlmTextOptions,
 ): Promise<string> {

@@ -1,9 +1,12 @@
 'use client'
+import useSWR from 'swr'
+import { useMemo, useState } from 'react'
 import {
   Anchor,
   Bell,
   BookOpen,
   Bot,
+  Eye,
   FileText,
   HelpCircle,
   Play,
@@ -16,6 +19,13 @@ import {
   X,
 } from 'lucide-react'
 import { useWorkspace, type Tab } from '@/lib/workspace/store'
+import type { PanelItem } from '@/components/item-side-panel'
+import {
+  ContextActionDialog,
+  type ContextActionRequest,
+} from './context-action-dialog'
+
+const fetcher = (u: string) => fetch(u).then(r => r.json())
 
 const TYPE_ICON: Record<string, typeof Sparkles> = {
   skill: Sparkles,
@@ -31,6 +41,7 @@ function TabIcon({ tab }: { tab: Tab }) {
   if (tab.kind === 'welcome') return <Play size={11} strokeWidth={1.6} />
   if (tab.kind === 'recs') return <Bell size={11} strokeWidth={1.5} />
   if (tab.kind === 'settings') return <SettingsIcon size={11} strokeWidth={1.5} />
+  if (tab.kind === 'preview') return <Eye size={11} strokeWidth={1.5} />
   const Icon = TYPE_ICON[tab.type] ?? FileText
   return <Icon size={11} strokeWidth={1.5} />
 }
@@ -67,9 +78,97 @@ export function TabBar({
   runScan?: () => void | Promise<void>
   runJudge?: () => void | Promise<void>
 }) {
-  const { state, setCurrent, closeTab, setPalOpen, setHelpOpen, toggleSidebar, toggleSidePanel, toggleBottom } =
-    useWorkspace()
+  const {
+    state,
+    setCurrent,
+    closeTab,
+    setPalOpen,
+    setHelpOpen,
+    toggleSidebar,
+    toggleSidePanel,
+    toggleBottom,
+  } = useWorkspace()
   const { tabs, current, scanning, sidebarHidden, sidePanelHidden, bottomCollapsed } = state
+  const items = useSWR<PanelItem[]>('/api/registry?limit=1000', fetcher)
+  const itemById = useMemo(() => new Map((items.data ?? []).map(item => [item.id, item])), [items.data])
+  const [actionTarget, setActionTarget] = useState<Parameters<typeof ContextActionDialog>[0]['target']>(null)
+
+  const openTabActions = (tab: Tab) => {
+    setCurrent(tab.id)
+    setActionTarget({
+      kind: 'tab',
+      tab,
+      item: tab.kind === 'editor' ? itemById.get(tab.id) ?? null : null,
+    })
+  }
+
+  const runAction = async (request: ContextActionRequest) => {
+    const { id, dialogTarget, path, target, provider } = request
+    if (id === 'close' && dialogTarget.kind === 'tab') closeTab(dialogTarget.tab.id)
+    if (id === 'copy-path' && path) await navigator.clipboard?.writeText(path)
+    if (id === 'preview') {
+      const itemId =
+        dialogTarget.kind === 'tab' && dialogTarget.tab.kind === 'editor'
+          ? dialogTarget.tab.id
+          : dialogTarget.kind === 'tab' && dialogTarget.tab.kind === 'preview'
+            ? dialogTarget.tab.sourceId
+            : dialogTarget.kind === 'unit'
+              ? dialogTarget.item.id
+              : null
+      if (itemId) {
+        window.open(`/preview?id=${encodeURIComponent(itemId)}`, '_blank', 'noopener,noreferrer')
+      }
+    }
+    if (id === 'judge') {
+      await fetch('/api/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target }),
+      })
+      await items.mutate()
+    }
+    if (id === 'analyze') {
+      await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target }),
+      })
+    }
+    if (id === 'improve') {
+      const itemId =
+        dialogTarget.kind === 'tab' && dialogTarget.tab.kind === 'editor'
+          ? dialogTarget.tab.id
+          : dialogTarget.kind === 'unit'
+            ? dialogTarget.item.id
+            : null
+      if (itemId) {
+        if (state.sidePanelHidden) toggleSidePanel()
+        window.dispatchEvent(
+          new CustomEvent('ah:open-improve', { detail: { itemId, provider } }),
+        )
+      } else {
+        await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, target }),
+        })
+      }
+    }
+    if (id === 'save' && dialogTarget.kind === 'tab') {
+      window.dispatchEvent(new CustomEvent('ah:save-tab', { detail: dialogTarget.tab.id }))
+    }
+    if (id === 'save-as' && dialogTarget.kind === 'tab') {
+      const destinationPath = window.prompt('Save as absolute path', path ?? '')
+      if (destinationPath) {
+        window.dispatchEvent(
+          new CustomEvent('ah:save-as-tab', {
+            detail: { id: dialogTarget.tab.id, destinationPath },
+          }),
+        )
+      }
+    }
+    setActionTarget(null)
+  }
 
   return (
     <div className="ah-tabs">
@@ -79,8 +178,18 @@ export function TabBar({
           <div
             key={tab.id}
             className={`ah-t${active ? ' on' : ''}`}
-            onClick={() => setCurrent(tab.id)}
-            title={tab.kind === 'editor' ? tab.path : tab.name}
+            onClick={e => {
+              if (e.altKey) {
+                openTabActions(tab)
+                return
+              }
+              setCurrent(tab.id)
+            }}
+            onContextMenu={e => {
+              e.preventDefault()
+              openTabActions(tab)
+            }}
+            title={tab.kind === 'editor' || tab.kind === 'preview' ? tab.path : tab.name}
           >
             <span className="ah-tab-ic">
               <TabIcon tab={tab} />
@@ -168,6 +277,16 @@ export function TabBar({
           <HelpCircle size={14} strokeWidth={1.6} />
         </button>
       </div>
+      <ContextActionDialog
+        open={Boolean(actionTarget)}
+        target={actionTarget}
+        onOpenChange={open => {
+          if (!open) setActionTarget(null)
+        }}
+        onAction={request => {
+          void runAction(request)
+        }}
+      />
     </div>
   )
 }

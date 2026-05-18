@@ -84,6 +84,32 @@ export function getItemById(id: string): RegistryItem | null {
   return (getDb().select().from(items).where(eq(items.id, id)).get() as RegistryItem | undefined) ?? null
 }
 
+export function deleteItemById(id: string): number {
+  getDb().delete(snoozedItems).where(eq(snoozedItems.itemId, id)).run()
+  return getDb().delete(items).where(eq(items.id, id)).run().changes
+}
+
+export function deleteItemsByRepo(repoPath: string): number {
+  const repoItems = getItems({ repoPath, excludeSnoozed: false }, { limit: 10000 })
+  for (const item of repoItems) {
+    getDb().delete(snoozedItems).where(eq(snoozedItems.itemId, item.id)).run()
+  }
+  getDb().delete(recommendations).where(eq(recommendations.repoPath, repoPath)).run()
+  getDb().delete(repos).where(eq(repos.path, repoPath)).run()
+  return getDb().delete(items).where(eq(items.repoPath, repoPath)).run().changes
+}
+
+export function deleteItemsByRepoAndType(repoPath: string, type: ItemType): number {
+  const repoItems = getItems({ repoPath, type, excludeSnoozed: false }, { limit: 10000 })
+  for (const item of repoItems) {
+    getDb().delete(snoozedItems).where(eq(snoozedItems.itemId, item.id)).run()
+  }
+  return getDb()
+    .delete(items)
+    .where(and(eq(items.repoPath, repoPath), eq(items.type, type)))
+    .run().changes
+}
+
 export function countItems(filter: ItemFilter = {}): number {
   return getDb().select().from(items).where(buildWhere(filter)).all().length
 }

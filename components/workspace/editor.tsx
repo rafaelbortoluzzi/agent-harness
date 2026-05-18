@@ -89,6 +89,28 @@ function EditorBody({
     }
   }
 
+  const saveAs = async (destinationPath: string) => {
+    setStatus('saving')
+    setError(null)
+    try {
+      const resp = await fetch(`/api/file?id=${encodeURIComponent(tab.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationPath, content: body }),
+      })
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}))
+        setError(json.error ?? `HTTP ${resp.status}`)
+        setStatus('error')
+        return
+      }
+      setStatus('saved')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'save as failed')
+      setStatus('error')
+    }
+  }
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -103,6 +125,26 @@ function EditorBody({
       window.removeEventListener('keydown', handler, { capture: true } as EventListenerOptions)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirty, body, tab.id])
+
+  useEffect(() => {
+    const onSave = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail
+      if (detail !== tab.id) return
+      void save()
+    }
+    const onSaveAs = (e: Event) => {
+      const detail = (e as CustomEvent<{ id: string; destinationPath: string }>).detail
+      if (detail?.id !== tab.id || !detail.destinationPath) return
+      void saveAs(detail.destinationPath)
+    }
+    window.addEventListener('ah:save-tab', onSave)
+    window.addEventListener('ah:save-as-tab', onSaveAs)
+    return () => {
+      window.removeEventListener('ah:save-tab', onSave)
+      window.removeEventListener('ah:save-as-tab', onSaveAs)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, tab.id])
 
   const reset = () => {
     setBody(original)

@@ -4,6 +4,7 @@ import {
   failScan,
   finishScan,
   getItems,
+  getRepos,
   startScan,
   updateRepoHealth,
   upsertItem,
@@ -27,14 +28,52 @@ export interface ScanResult {
   brokenCount: number
 }
 
+export interface ScanOptions {
+  approvedAutoRepos?: string[]
+  rejectedAutoRepos?: string[]
+}
+
+export interface ScanPreviewRepo {
+  path: string
+  source: 'config' | 'auto-discovered' | 'manual'
+  known: boolean
+}
+
+export async function getScanPreviewRepos(): Promise<ScanPreviewRepo[]> {
+  const config = getConfig()
+  const discovered = await discoverRepos(config)
+  const known = new Set(getRepos().map(repo => repo.path))
+  for (const repoPath of config.explicitRepos) known.add(repoPath)
+  return discovered.map(repo => ({
+    ...repo,
+    known: repo.source !== 'auto-discovered' || known.has(repo.path),
+  }))
+}
+
+function filterScanRepos(
+  repos: Awaited<ReturnType<typeof discoverRepos>>,
+  options: ScanOptions,
+) {
+  if (!options.approvedAutoRepos && !options.rejectedAutoRepos) return repos
+  const approved = new Set(options.approvedAutoRepos ?? [])
+  const rejected = new Set(options.rejectedAutoRepos ?? [])
+  const hasApprovedList = options.approvedAutoRepos !== undefined
+  return repos.filter(repo => {
+    if (repo.source !== 'auto-discovered') return true
+    if (rejected.has(repo.path)) return false
+    return hasApprovedList ? approved.has(repo.path) : true
+  })
+}
+
 export async function runScan(
   onProgress?: (msg: string) => void,
   scanId?: string,
+  options: ScanOptions = {},
 ): Promise<ScanResult> {
   const id = scanId ?? startScan()
   try {
     const config = getConfig()
-    const repos = await discoverRepos(config)
+    const repos = filterScanRepos(await discoverRepos(config), options)
     onProgress?.(`Discovered ${repos.length} repos`)
 
     const personalResults = await Promise.all(ADAPTERS.map(a => a.scanPersonal()))

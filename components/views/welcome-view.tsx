@@ -38,6 +38,12 @@ interface Recommendation {
   id: string
 }
 
+interface ScanPreviewRepo {
+  path: string
+  source: 'config' | 'auto-discovered' | 'manual'
+  known: boolean
+}
+
 export function WelcomeView() {
   const { setPalOpen, openRecs, setScanning, state } = useWorkspace()
   const repos = useSWR<Repo[]>('/api/registry?resource=repos', fetcher)
@@ -46,17 +52,35 @@ export function WelcomeView() {
   const recs = useSWR<Recommendation[]>('/api/recommendations', fetcher)
   const config = useSWR<Config>('/api/config', fetcher)
   const [judging, setJudging] = useState(false)
+  const [scanChoices, setScanChoices] = useState<ScanPreviewRepo[] | null>(null)
+  const [approvedRepos, setApprovedRepos] = useState<Set<string>>(new Set())
 
-  const triggerScan = async () => {
+  const startScan = async (approvedAutoRepos?: string[]) => {
     setScanning(true)
     try {
-      await fetch('/api/scan', { method: 'POST' })
+      await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approvedAutoRepos }),
+      })
       await repos.mutate()
       await scans.mutate()
       await items.mutate()
     } finally {
       setScanning(false)
     }
+  }
+
+  const triggerScan = async () => {
+    const resp = await fetch('/api/scan')
+    const body = (await resp.json()) as { repos?: ScanPreviewRepo[] }
+    const choices = (body.repos ?? []).filter(r => r.source === 'auto-discovered' && !r.known)
+    if (choices.length > 0) {
+      setApprovedRepos(new Set(choices.map(r => r.path)))
+      setScanChoices(choices)
+      return
+    }
+    await startScan(body.repos?.filter(r => r.source === 'auto-discovered').map(r => r.path))
   }
 
   const triggerJudge = async () => {
@@ -246,6 +270,86 @@ export function WelcomeView() {
           </section>
         </div>
       </div>
+      {scanChoices && (
+        <div className="ah-dialog-overlay">
+          <div className="ah-action-dialog ah-scan-dialog" role="dialog" aria-label="Confirm discovered repos">
+            <div className="ah-action-head">
+              <div>
+                <div className="ah-action-title">Add discovered repos?</div>
+                <div className="ah-action-meta">
+                  <span>{scanChoices.length} auto-discovered</span>
+                </div>
+              </div>
+              <button type="button" onClick={() => setScanChoices(null)} aria-label="Close scan dialog">
+                x
+              </button>
+            </div>
+            <div className="ah-scan-bulk">
+              <button
+                type="button"
+                onClick={() => setApprovedRepos(new Set(scanChoices.map(r => r.path)))}
+              >
+                Yes to all
+              </button>
+              <button type="button" onClick={() => setApprovedRepos(new Set())}>
+                No to all
+              </button>
+            </div>
+            <div className="ah-scan-repos">
+              {scanChoices.map(repo => {
+                const approved = approvedRepos.has(repo.path)
+                return (
+                  <div key={repo.path} className="ah-scan-repo">
+                    <span>{repo.path}</span>
+                    <button
+                      type="button"
+                      className={approved ? 'on' : ''}
+                      onClick={() =>
+                        setApprovedRepos(prev => {
+                          const next = new Set(prev)
+                          next.add(repo.path)
+                          return next
+                        })
+                      }
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      className={!approved ? 'on' : ''}
+                      onClick={() =>
+                        setApprovedRepos(prev => {
+                          const next = new Set(prev)
+                          next.delete(repo.path)
+                          return next
+                        })
+                      }
+                    >
+                      No
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="ah-dialog-footer">
+              <button type="button" onClick={() => setScanChoices(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const approved = Array.from(approvedRepos)
+                  setScanChoices(null)
+                  void startScan(approved)
+                }}
+              >
+                Start scan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
