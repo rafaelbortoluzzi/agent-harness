@@ -9,6 +9,7 @@ export interface HarnessConfig {
   discoveryDepth: number
   respectGitignore: boolean
   healthWeights: Partial<HealthWeights>
+  llmProvider?: string
 }
 
 const DEFAULT: HarnessConfig = {
