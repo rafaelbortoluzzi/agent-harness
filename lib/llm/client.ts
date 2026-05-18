@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-export const MODEL = 'claude-sonnet-4-6'
+export const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6'
 
 let _client: Anthropic | null = null
 

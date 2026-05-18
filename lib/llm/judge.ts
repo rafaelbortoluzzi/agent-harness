@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { completeLlmText } from './provider'
+import { completeLlmText, completeLlmTextWithProvider, type LlmProviderName } from './provider'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
 export interface Verdict {
@@ -43,18 +43,24 @@ function readBody(item: RegistryItem): string {
   }
 }
 
-export async function judgeItem(item: RegistryItem): Promise<Verdict> {
+export async function judgeItem(
+  item: RegistryItem,
+  provider?: LlmProviderName,
+): Promise<Verdict> {
   if (!['skill', 'agent', 'rule', 'command', 'instruction'].includes(item.type)) {
     return { score: 0, rationale: 'Item type not eligible for judging' }
   }
   const body = readBody(item)
   if (!body) return { score: 0, rationale: 'Empty or unreadable body' }
 
-  const text = await completeLlmText({
+  const request = {
     system: SYSTEM,
     prompt: buildUserPrompt(item, body),
     maxTokens: 256,
-  })
+  }
+  const text = provider
+    ? await completeLlmTextWithProvider(provider, request)
+    : await completeLlmText(request)
 
   return parseVerdict(text)
 }

@@ -1,6 +1,6 @@
 # Agent Harness Roadmap
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 This file is the project status ledger. Keep it updated when phases finish,
 when priorities change, or when new known debt is discovered.
@@ -23,10 +23,11 @@ hooks, MCPs, instructions, plugins, and rules.
 
 Confirmed locally on 2026-05-17:
 
-- Tests: 89 passing.
-- Build: passing.
-- Lint: passing.
-- Routes: 18 generated app routes.
+- Tests: 100 passing.
+- Build: passing, with the known Turbopack trace warning listed below.
+- Lint: passing for touched source/test files; full lint is currently blocked
+  by untracked design handoff reference JSX.
+- Routes: 21 generated app routes.
 - Tags: v0.1.0, v0.2.0.
 - Package version: 0.2.0.
 - CLI: available for scan, list, doctor, export, snooze, judge, analyze, watch.
@@ -88,6 +89,19 @@ Confirmed locally on 2026-05-17:
   separately in UI config.
 - Verified tiny provider smokes and `pnpm cli judge --limit 1 --json` with both
   `claude-code-cli` and `codex-cli`.
+- Fixed the VSCode-style central pane so non-editor tabs such as Settings,
+  Welcome, and Recommendations scroll inside the app shell instead of being
+  clipped behind the bottom panel.
+- Moved LLM provider selection into runtime app config at
+  `~/.agent-harness/config.json`, while preserving env-var fallback through
+  `AGENT_HARNESS_LLM_PROVIDER`.
+- Added Settings UI provider rows with selected/available/test states, plus
+  `/api/config/llm-test` for smoke-testing the chosen provider.
+- Added `openai-api` as a Codex/OpenAI API provider using `OPENAI_API_KEY` and
+  the Responses API, with `gpt-5.2-codex` as the default model.
+- Kept API keys environment-only; the app persists only the selected provider.
+- Committed the runtime provider and scroll fix locally as
+  `b846be2 feat: add LLM selection and view scroll`.
 
 ## Immediate Next Work
 
@@ -95,7 +109,7 @@ Confirmed locally on 2026-05-17:
 2. Run editor stream/apply smoke with `ANTHROPIC_API_KEY` set.
 3. Decide whether stale registry cleanup should also cascade to recommendations
    when repos are removed.
-4. Continue Phase 3 with additional adapters or Playwright E2E smoke.
+4. Add Playwright E2E smoke for Settings scroll and provider switching.
 
 ## Phase 3 Backlog
 
@@ -118,12 +132,16 @@ Confirmed locally on 2026-05-17:
 - Build emits a Next/Turbopack trace warning through the scanner import path:
   `next.config.ts -> lib/scanner/adapters/claude.ts -> lib/scanner/index.ts`.
 - Concurrent CLI commands can contend on SQLite and return `database is locked`.
+- Full `pnpm lint` also scans untracked design handoff reference JSX in the
+  current worktree; either commit/exclude/fix those reference files before
+  treating global lint as a release gate again.
 
 ## Coverage
 
-Current tests cover config, database helpers, registry queries, Claude adapter,
-Codex adapter, discovery, validators, health scoring, LLM provider selection,
-judge parser, and gap parser.
+Current tests cover config, config API provider metadata, provider smoke-test
+route behavior, database helpers, registry queries, Claude adapter, Codex
+adapter, discovery, validators, health scoring, LLM provider selection, judge
+parser, and gap parser.
 
 Missing or incomplete coverage:
 

@@ -1,7 +1,12 @@
 import { createHash } from 'crypto'
-import { completeLlmText } from './provider'
+import {
+  completeLlmText,
+  completeLlmTextWithProvider,
+  type LlmProviderName,
+} from './provider'
 import { clearRecommendations, upsertRecommendation } from '@/lib/registry/queries'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
+import type { ActionTarget } from '@/lib/workspace/action-targets'
 
 const SYSTEM = `You are an AI agent ecosystem analyst.
 
@@ -56,15 +61,40 @@ export function parseRecommendations(text: string): Recommendation[] {
   }
 }
 
-export async function analyzeRepo(repoPath: string, items: RegistryItem[]): Promise<Recommendation[]> {
-  const inventory = summarizeItems(items)
-  const userPrompt = `Repo: ${repoPath}\n\nCurrent inventory:\n${inventory || '(empty)'}\n\nWhat's missing?`
+export interface AnalyzeOptions {
+  provider?: LlmProviderName
+  target?: ActionTarget
+}
 
-  const text = await completeLlmText({
+function targetLabel(target?: ActionTarget): string {
+  if (!target || target.scope === 'all') return 'all repos'
+  if (target.scope === 'repo') return `repo ${target.repoPath}`
+  if (target.scope === 'section') return `${target.itemType} section in ${target.repoPath}`
+  return `unit ${target.itemId}`
+}
+
+export async function analyzeRepo(
+  repoPath: string,
+  items: RegistryItem[],
+  options: AnalyzeOptions = {},
+): Promise<Recommendation[]> {
+  const inventory = summarizeItems(items)
+  const userPrompt = `Repo: ${repoPath}
+Analysis scope: ${targetLabel(options.target)}
+
+Current inventory:
+${inventory || '(empty)'}
+
+What's missing?`
+
+  const request = {
     system: SYSTEM,
     prompt: userPrompt,
     maxTokens: 1024,
-  })
+  }
+  const text = options.provider
+    ? await completeLlmTextWithProvider(options.provider, request)
+    : await completeLlmText(request)
 
   return parseRecommendations(text)
 }
@@ -72,8 +102,9 @@ export async function analyzeRepo(repoPath: string, items: RegistryItem[]): Prom
 export async function analyzeAndPersist(
   repoPath: string,
   items: RegistryItem[],
+  options: AnalyzeOptions = {},
 ): Promise<number> {
-  const recs = await analyzeRepo(repoPath, items)
+  const recs = await analyzeRepo(repoPath, items, options)
   clearRecommendations(repoPath)
   for (const r of recs) {
     const id = createHash('sha256').update(`${repoPath}|${r.kind}|${r.name}`).digest('hex').slice(0, 16)

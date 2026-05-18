@@ -21,6 +21,7 @@ describe('config', () => {
     expect(c.roots).toEqual([])
     expect(c.discoveryDepth).toBe(2)
     expect(c.respectGitignore).toBe(true)
+    expect(c.llmProvider).toBeUndefined()
   })
 
   it('persists changes', () => {
@@ -30,11 +31,13 @@ describe('config', () => {
       discoveryDepth: 3,
       respectGitignore: false,
       healthWeights: {},
+      llmProvider: 'codex-cli',
     })
     const c = getConfig()
     expect(c.roots).toEqual(['/x'])
     expect(c.discoveryDepth).toBe(3)
     expect(c.respectGitignore).toBe(false)
+    expect(c.llmProvider).toBe('codex-cli')
   })
 
   it('throws on malformed JSON', () => {

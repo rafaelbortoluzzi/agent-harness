@@ -1,5 +1,6 @@
 import fs from 'fs'
 import { getClient, MODEL } from './client'
+import { completeLlmTextWithProvider, type LlmProviderName } from './provider'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
 const SYSTEM = `You are editing an AI agent asset (skill, agent, rule, command, or instruction).
@@ -54,6 +55,29 @@ export async function* streamEdit(
   } catch (err) {
     yield { type: 'error', error: err instanceof Error ? err.message : 'Stream failed' }
   }
+}
+
+export async function completeEdit(
+  item: RegistryItem,
+  userPrompt: string,
+  provider: LlmProviderName,
+): Promise<string> {
+  if (!fs.existsSync(item.path)) throw new Error(`Path not found: ${item.path}`)
+  const stat = fs.statSync(item.path)
+  if (stat.isDirectory()) throw new Error('Cannot edit a directory')
+  const body = fs.readFileSync(item.path, 'utf8')
+  return completeLlmTextWithProvider(provider, {
+    system: SYSTEM,
+    prompt: `Asset: ${item.runtime}/${item.type}/${item.name}
+Path: ${item.path}
+
+--- CURRENT BODY ---
+${body}
+--- END BODY ---
+
+User request: ${userPrompt}`,
+    maxTokens: 8192,
+  })
 }
 
 export function applyEdit(item: RegistryItem, newContent: string): void {
