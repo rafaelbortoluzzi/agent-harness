@@ -24,6 +24,9 @@
 # misc
 .DS_Store
 *.pem
+.claude/
+*.zip
+design_handoff_vscode_redesign/
 
 # debug
 npm-debug.log*
