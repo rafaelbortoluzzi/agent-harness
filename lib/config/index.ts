@@ -10,6 +10,7 @@ export interface HarnessConfig {
   respectGitignore: boolean
   healthWeights: Partial<HealthWeights>
   llmProvider?: string
+  personalHarnessPreferences?: string
 }
 
 const DEFAULT: HarnessConfig = {
@@ -18,6 +19,7 @@ const DEFAULT: HarnessConfig = {
   discoveryDepth: 2,
   respectGitignore: true,
   healthWeights: {},
+  personalHarnessPreferences: '',
 }
 
 export const CONFIG_DIR = (): string =>
@@ -38,7 +40,7 @@ export function getConfig(): HarnessConfig {
 
 export function setConfig(config: HarnessConfig): void {
   fs.mkdirSync(CONFIG_DIR(), { recursive: true })
-  fs.writeFileSync(configPath(), JSON.stringify(config, null, 2))
+  fs.writeFileSync(configPath(), JSON.stringify({ ...DEFAULT, ...config }, null, 2))
 }
 
 export function getEffectiveWeights(): HealthWeights {

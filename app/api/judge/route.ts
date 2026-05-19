@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getConfig } from '@/lib/config'
 import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm/provider'
 import { judgeUnjudged } from '@/lib/llm/judge-runner'
 import type { Runtime } from '@/lib/scanner/adapters/base'
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     )
   }
   try {
+    const personalContext = getConfig().personalHarnessPreferences
     const result = await judgeUnjudged({
       runtime: body.runtime as Runtime | undefined,
       limit: typeof body.limit === 'number' ? body.limit : undefined,
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
       target: normalizeActionTarget(body.target),
       ...(typeof body.presetId === 'string' ? { presetId: body.presetId } : {}),
       ...(body.promptOverride ? { promptOverride: body.promptOverride } : {}),
+      ...(personalContext ? { personalContext } : {}),
     })
     return NextResponse.json(result)
   } catch (err) {

@@ -15,6 +15,7 @@ export interface JudgeOptions {
   target?: ActionTarget
   presetId?: string
   promptOverride?: PromptOverride
+  personalContext?: string
   onProgress?: (n: number, total: number, name: string) => void
 }
 
@@ -42,6 +43,7 @@ export async function judgeUnjudged(options: JudgeOptions = {}): Promise<{ judge
         const verdict = await judgeItem(item, options.provider, {
           presetId: options.presetId,
           promptOverride: options.promptOverride,
+          personalContext: options.personalContext,
         })
         setVerdict(item.id, verdict.score, verdict.rationale)
         judged++

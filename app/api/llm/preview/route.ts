@@ -1,5 +1,6 @@
 import fs from 'fs'
 import { NextRequest, NextResponse } from 'next/server'
+import { getConfig } from '@/lib/config'
 import { buildAnalyzeRequest, ANALYZE_PRESETS } from '@/lib/llm/gap-analyst'
 import { buildEditRequest } from '@/lib/llm/editor'
 import { buildJudgeRequest, JUDGE_PRESETS } from '@/lib/llm/judge'
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
   const action = body.action as PreviewAction
   const target = normalizeActionTarget(body.target)
   const presetId = typeof body.presetId === 'string' ? body.presetId : undefined
+  const personalContext = getConfig().personalHarnessPreferences ?? ''
 
   if (action === 'judge') {
     const item =
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
       action,
       presetId: presetId ?? JUDGE_PRESETS[0].id,
       presets: JUDGE_PRESETS,
-      request: buildJudgeRequest(item, readBody(item), { presetId }),
+      request: buildJudgeRequest(item, readBody(item), { presetId, personalContext }),
       target,
     })
   }
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
       request: buildAnalyzeRequest(repo.repoPath, previewItems(repo.repoPath, repo.target), {
         presetId,
         target: repo.target,
+        personalContext,
       }),
       target: repo.target,
     })

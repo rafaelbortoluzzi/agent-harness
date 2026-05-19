@@ -61,6 +61,7 @@ export interface PromptOverride {
 export interface JudgeRequestOptions {
   presetId?: string
   promptOverride?: PromptOverride
+  personalContext?: string
 }
 
 function judgeSystemForPreset(presetId?: string): string {
@@ -91,9 +92,16 @@ export function buildJudgeRequest(
       maxTokens: 256,
     }
   }
+  const personal = options.personalContext?.trim()
+  const prompt = buildJudgeUserPrompt(item, body)
   return {
     system: judgeSystemForPreset(options.presetId),
-    prompt: buildJudgeUserPrompt(item, body),
+    prompt: personal
+      ? `${prompt}
+
+Personal harness preferences:
+${personal}`
+      : prompt,
     maxTokens: 256,
   }
 }

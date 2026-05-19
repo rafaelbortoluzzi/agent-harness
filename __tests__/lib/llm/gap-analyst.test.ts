@@ -68,4 +68,13 @@ describe('buildAnalyzeRequest', () => {
     expect(request.system).toContain('agent harness blueprint')
     expect(request.system).toContain('skills, agents, hooks, MCPs')
   })
+
+  it('adds personal harness preferences to repo analysis prompts', () => {
+    const request = buildAnalyzeRequest('/repo', [item], {
+      personalContext: 'Optimize for token savings and repeatable repo setup.',
+    })
+
+    expect(request.prompt).toContain('Personal harness preferences')
+    expect(request.prompt).toContain('token savings')
+  })
 })

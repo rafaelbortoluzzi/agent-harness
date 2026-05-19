@@ -20,6 +20,7 @@ interface Config {
   llmEditorConnected: boolean
   llmProvider: string
   llmProviders: LlmProviderStatus[]
+  personalHarnessPreferences: string
 }
 
 interface LlmProviderStatus {
@@ -288,6 +289,20 @@ export function SettingsView() {
             Add
           </button>
         </div>
+      </section>
+
+      <section className="ah-settings-section">
+        <h2>Personal harness preferences</h2>
+        <p style={{ fontSize: 11, color: 'var(--ah-fg-3)', margin: '0 0 10px' }}>
+          Added to default judge and analysis prompts before you review or edit them.
+        </p>
+        <textarea
+          className="ah-editor-textarea allow-shortcuts"
+          value={cfg.personalHarnessPreferences}
+          onChange={e => save({ personalHarnessPreferences: e.target.value })}
+          rows={5}
+          placeholder="Example: Prefer repo-local skills for repeated workflows. Optimize for token savings, clear triggers, and small focused skills."
+        />
       </section>
 
       <section className="ah-settings-section">

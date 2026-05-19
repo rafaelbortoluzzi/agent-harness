@@ -61,4 +61,13 @@ describe('buildJudgeRequest', () => {
     expect(request.system).toContain('personal workflow')
     expect(request.system).toContain('time or token savings')
   })
+
+  it('adds personal harness preferences to the user prompt', () => {
+    const request = buildJudgeRequest(item, 'body text', {
+      personalContext: 'Prefer short repo-local skills.',
+    })
+
+    expect(request.prompt).toContain('Personal harness preferences')
+    expect(request.prompt).toContain('Prefer short repo-local skills.')
+  })
 })

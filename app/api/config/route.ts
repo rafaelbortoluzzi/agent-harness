@@ -35,6 +35,10 @@ export async function PATCH(req: NextRequest) {
         ? body.healthWeights
         : current.healthWeights,
     llmProvider: body.llmProvider ?? current.llmProvider,
+    personalHarnessPreferences:
+      typeof body.personalHarnessPreferences === 'string'
+        ? body.personalHarnessPreferences
+        : current.personalHarnessPreferences,
   })
   return NextResponse.json({
     ...getConfig(),

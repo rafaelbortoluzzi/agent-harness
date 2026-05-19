@@ -53,6 +53,22 @@ describe('/api/config', () => {
     expect('llmConnected' in getConfig()).toBe(false)
   })
 
+  it('persists personal harness preferences', async () => {
+    const response = await PATCH(
+      new NextRequest('http://localhost/api/config', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          personalHarnessPreferences: 'Prefer small repo-local skills over generic global prompts.',
+        }),
+      }),
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.personalHarnessPreferences).toContain('repo-local skills')
+    expect(getConfig().personalHarnessPreferences).toContain('repo-local skills')
+  })
+
   it('rejects invalid providers', async () => {
     const response = await PATCH(
       new NextRequest('http://localhost/api/config', {

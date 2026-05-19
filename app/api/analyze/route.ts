@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getConfig } from '@/lib/config'
 import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm/provider'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
 import { getItemById, getItems, getRepos } from '@/lib/registry/queries'
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     ? ({ scope: 'repo', repoPath: body.repoPath as string } satisfies ActionTarget)
     : normalizeActionTarget(body.target)
   const repos = repoTargets(target)
+  const personalContext = getConfig().personalHarnessPreferences ?? ''
 
   let total = 0
   const errors: string[] = []
@@ -54,6 +56,7 @@ export async function POST(req: NextRequest) {
         target: repo.target,
         ...(typeof body.presetId === 'string' ? { presetId: body.presetId } : {}),
         ...(body.promptOverride ? { promptOverride: body.promptOverride } : {}),
+        ...(personalContext ? { personalContext } : {}),
       }
       total += await analyzeAndPersist(repo.path, items, analyzeOptions)
     } catch (err) {

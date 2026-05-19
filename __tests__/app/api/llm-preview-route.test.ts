@@ -8,6 +8,12 @@ jest.mock('@/lib/registry/queries', () => ({
   getRepos: jest.fn(),
 }))
 
+jest.mock('@/lib/config', () => ({
+  getConfig: jest.fn(() => ({
+    personalHarnessPreferences: 'Prefer repo-local skills with clear trigger conditions.',
+  })),
+}))
+
 const mockedGetItemById = getItemById as jest.Mock
 const mockedGetItems = getItems as jest.Mock
 const mockedGetRepos = getRepos as jest.Mock
@@ -51,6 +57,7 @@ describe('/api/llm/preview', () => {
     expect(body.action).toBe('judge')
     expect(body.request.system).toContain('personal workflow')
     expect(body.request.prompt).toContain('release-helper')
+    expect(body.request.prompt).toContain('Prefer repo-local skills')
   })
 
   it('returns the prompt for repo analysis', async () => {

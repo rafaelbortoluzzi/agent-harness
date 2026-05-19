@@ -101,6 +101,7 @@ export interface AnalyzeOptions {
   target?: ActionTarget
   presetId?: string
   promptOverride?: PromptOverride
+  personalContext?: string
 }
 
 function targetLabel(target?: ActionTarget): string {
@@ -127,6 +128,7 @@ export function buildAnalyzeRequest(
     }
   }
   const inventory = summarizeItems(items)
+  const personal = options.personalContext?.trim()
   return {
     system: analyzeSystemForPreset(options.presetId),
     prompt: `Repo: ${repoPath}
@@ -134,6 +136,10 @@ Analysis scope: ${targetLabel(options.target)}
 
 Current inventory:
 ${inventory || '(empty)'}
+${personal ? `
+Personal harness preferences:
+${personal}
+` : ''}
 
 What's missing?`,
     maxTokens: 1024,
