@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useReducer, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '@/lib/workspace/store'
 import {
@@ -23,17 +23,69 @@ import {
   type SortSpec,
 } from '@/lib/workspace/retro-details'
 import { RetroTree } from './retro-tree'
+import { RetroMenuBar, type MenuDef } from './retro-menubar'
 import { RetroEditor } from './retro-editor'
-import { RetroAboutModal, RetroHelpModal, RetroRecsModal } from './retro-modals'
+import { RetroIcon, iconForType } from './retro-icons'
+import {
+  RetroAboutModal,
+  RetroHelpModal,
+  RetroOptionsModal,
+  RetroRecsModal,
+  RetroScanLogModal,
+  RetroSnoozedModal,
+} from './retro-modals'
 import {
   initialModalState,
   retroModalReducer,
   type RetroModalKind,
 } from '@/lib/workspace/retro-modal'
+import { computeSplitterWidth } from '@/lib/workspace/retro-splitter'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import type { PanelItem } from '@/components/item-side-panel'
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
+
+const MENUS: MenuDef[] = [
+  {
+    label: 'File',
+    items: [
+      { id: 'new', label: 'New Skill…', kbd: 'Ctrl+N', disabled: true },
+      { id: 'sep1', sep: true },
+      { id: 'go-root', label: 'Go to Root' },
+      { id: 'sep2', sep: true },
+      { id: 'switch-modern', label: 'Switch to Modern UI…' },
+    ],
+  },
+  {
+    label: 'View',
+    items: [
+      { id: 'details', label: 'Details' },
+      { id: 'icons', label: 'Large Icons', disabled: true },
+      { id: 'sep1', sep: true },
+      { id: 'refresh', label: 'Refresh', kbd: 'F5' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { id: 'scan', label: 'Scan Repositories', kbd: 'F9' },
+      { id: 'judge', label: 'Judge with LLM…' },
+      { id: 'sep1', sep: true },
+      { id: 'recs', label: 'Recommendations…' },
+      { id: 'scan-log', label: 'Scan Log…' },
+      { id: 'snoozed', label: 'Snoozed Items…' },
+      { id: 'sep2', sep: true },
+      { id: 'options', label: 'Options…' },
+    ],
+  },
+  {
+    label: 'Help',
+    items: [
+      { id: 'help', label: 'Keyboard Shortcuts…', kbd: 'F1' },
+      { id: 'about', label: 'About Agent Harness…' },
+    ],
+  },
+]
 
 interface ApiRepo {
   path: string
@@ -95,6 +147,48 @@ export function RetroShell() {
 
   const [navState, dispatch] = useReducer(retroNavReducer, initialRetroNavState)
   const [sort, setSort] = useState<SortSpec>({ key: 'name', dir: 'asc' })
+  const [treeWidth, setTreeWidth] = useState(240)
+  const dragRef = useRef<{ baseWidth: number; startX: number } | null>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault()
+        openModal('help')
+      } else if (e.key === 'F9') {
+        e.preventDefault()
+        openModal('recs')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const { baseWidth, startX } = dragRef.current
+      setTreeWidth(
+        computeSplitterWidth({
+          base: baseWidth,
+          delta: e.clientX - startX,
+          min: 160,
+          max: 600,
+        }),
+      )
+    }
+    const onUp = () => {
+      dragRef.current = null
+      document.body.style.cursor = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
   const [modal, dispatchModal] = useReducer(retroModalReducer, initialModalState)
   const openModal = (kind: RetroModalKind) => dispatchModal({ type: 'open', kind })
   const closeModal = () => dispatchModal({ type: 'close' })
@@ -161,14 +255,37 @@ export function RetroShell() {
         <button className="rs-titlebar-btn" aria-label="Close">×</button>
       </div>
 
-      <div className="rs-menubar">
-        {['File', 'Edit', 'View', 'Tools', 'Help'].map(m => (
-          <span key={m} className="rs-menu-item">
-            <u>{m[0]}</u>
-            {m.slice(1)}
-          </span>
-        ))}
-      </div>
+      <RetroMenuBar
+        menus={MENUS}
+        onSelect={id => {
+          switch (id) {
+            case 'switch-modern':
+              setSkin('modern')
+              break
+            case 'recs':
+              openModal('recs')
+              break
+            case 'scan-log':
+              openModal('scan-log')
+              break
+            case 'snoozed':
+              openModal('snoozed')
+              break
+            case 'options':
+              openModal('options')
+              break
+            case 'help':
+              openModal('help')
+              break
+            case 'about':
+              openModal('about')
+              break
+            case 'go-root':
+              dispatch({ type: 'go-root' })
+              break
+          }
+        }}
+      />
 
       <div className="rs-toolbar">
         <button
@@ -184,25 +301,42 @@ export function RetroShell() {
           disabled={navState.nav.kind === 'root'}
           style={navState.nav.kind === 'root' ? { opacity: 0.5 } : undefined}
         >
-          <span style={{ fontSize: 16 }}>↑</span>
+          <RetroIcon name="up" size={20} />
           <span>Up</span>
         </button>
         <span className="rs-tool-sep" />
         <button className="rs-tool-btn">
-          <span style={{ fontSize: 16 }}>⟳</span>
+          <RetroIcon name="scan" size={20} />
           <span>Scan</span>
+        </button>
+        <button className="rs-tool-btn" onClick={() => openModal('recs')}>
+          <RetroIcon name="judge" size={20} />
+          <span>Judge</span>
         </button>
         <span className="rs-tool-sep" />
         <button className="rs-tool-btn" onClick={() => openModal('recs')}>
-          <span style={{ fontSize: 16 }}>★</span>
+          <RetroIcon name="star" size={20} />
           <span>Recs</span>
         </button>
+        <button className="rs-tool-btn" onClick={() => openModal('scan-log')}>
+          <RetroIcon name="scan" size={20} />
+          <span>Scan Log</span>
+        </button>
+        <button className="rs-tool-btn" onClick={() => openModal('snoozed')}>
+          <RetroIcon name="bell" size={20} />
+          <span>Snoozed</span>
+        </button>
+        <span className="rs-tool-sep" />
+        <button className="rs-tool-btn" onClick={() => openModal('options')}>
+          <RetroIcon name="cog" size={20} />
+          <span>Options</span>
+        </button>
         <button className="rs-tool-btn" onClick={() => openModal('help')}>
-          <span style={{ fontSize: 16 }}>?</span>
+          <RetroIcon name="help" size={20} />
           <span>Help</span>
         </button>
         <button className="rs-tool-btn" onClick={() => openModal('about')}>
-          <span style={{ fontSize: 16 }}>ℹ</span>
+          <RetroIcon name="props" size={20} />
           <span>About</span>
         </button>
         <div style={{ flex: 1 }} />
@@ -211,7 +345,7 @@ export function RetroShell() {
           onClick={() => setSkin('modern')}
           title="Switch to Modern UI"
         >
-          <span style={{ fontSize: 16 }}>⌘</span>
+          <RetroIcon name="view-icons" size={20} />
           <span>Modern UI</span>
         </button>
       </div>
@@ -219,7 +353,9 @@ export function RetroShell() {
       <div className="rs-address">
         <span className="rs-address-label">Address</span>
         <div className="rs-address-input">
-          <span style={{ marginRight: 6 }}>📁</span>
+          <span style={{ marginRight: 6, display: 'inline-flex' }}>
+            <RetroIcon name="folder-open" size={14} />
+          </span>
           {crumbs.map((c, i) => (
             <span key={c.id}>
               {i > 0 && <span style={{ margin: '0 6px', color: '#6b675d' }}>▸</span>}
@@ -230,7 +366,7 @@ export function RetroShell() {
       </div>
 
       <div className="rs-body">
-        <div className="rs-tree">
+        <div className="rs-tree" style={{ width: treeWidth }}>
           {reposReq.isLoading ? (
             <div style={{ padding: 6, color: '#6b675d' }}>Loading…</div>
           ) : (
@@ -249,7 +385,13 @@ export function RetroShell() {
             />
           )}
         </div>
-        <div className="rs-splitter" />
+        <div
+          className="rs-splitter"
+          onMouseDown={e => {
+            dragRef.current = { baseWidth: treeWidth, startX: e.clientX }
+            document.body.style.cursor = 'col-resize'
+          }}
+        />
         <div className="rs-content">
           <RetroContentTabs
             tabs={state.tabs}
@@ -346,8 +488,12 @@ export function RetroShell() {
                                 : isWarn
                                   ? '#8a6500'
                                   : undefined,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
                         }}
                       >
+                        <RetroIcon name={iconForType(row.type)} size={16} />
                         {row.name}
                       </td>
                       <td style={{ padding: '1px 6px' }}>{row.type}</td>
@@ -380,11 +526,17 @@ export function RetroShell() {
       <div className="rs-statusbar">
         <span className="rs-status-seg">{rows.length} objects</span>
         <span className="rs-status-seg">{formatKb(totalSize)}</span>
-        <span className="rs-status-seg" style={{ color: broken ? '#b22222' : undefined }}>
-          {broken} broken
+        <span
+          className="rs-status-seg"
+          style={{ color: broken ? '#b22222' : undefined, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          <RetroIcon name="broken" size={12} /> {broken} broken
         </span>
-        <span className="rs-status-seg" style={{ color: warnings ? '#8a6500' : undefined }}>
-          {warnings} warnings
+        <span
+          className="rs-status-seg"
+          style={{ color: warnings ? '#8a6500' : undefined, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          <RetroIcon name="warn" size={12} /> {warnings} warnings
         </span>
         <span className="rs-status-seg flex">
           {state.scanning ? '⟳ Scanning…' : 'Watch daemon idle'}
@@ -394,6 +546,9 @@ export function RetroShell() {
       {modal.kind === 'recs' && <RetroRecsModal onClose={closeModal} />}
       {modal.kind === 'about' && <RetroAboutModal onClose={closeModal} />}
       {modal.kind === 'help' && <RetroHelpModal onClose={closeModal} />}
+      {modal.kind === 'scan-log' && <RetroScanLogModal onClose={closeModal} />}
+      {modal.kind === 'snoozed' && <RetroSnoozedModal onClose={closeModal} />}
+      {modal.kind === 'options' && <RetroOptionsModal onClose={closeModal} />}
     </div>
   )
 }
@@ -440,7 +595,7 @@ function RetroContentTabs({ tabs, current, onActivate, onClose }: ContentTabsPro
         style={tabStyle(filesActive)}
         onClick={() => onActivate('welcome')}
       >
-        📁 Files
+        <RetroIcon name="folder" size={12} /> Files
       </span>
       {editorTabs.map(t => {
         const active = t.id === current

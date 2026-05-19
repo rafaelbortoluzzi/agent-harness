@@ -1,5 +1,12 @@
 'use client'
 import type { TreeNode } from '@/lib/workspace/retro-tree'
+import { RetroIcon, iconForType, type RetroIconName } from './retro-icons'
+
+function iconForNode(node: TreeNode): RetroIconName {
+  if (node.kind === 'root') return 'computer'
+  if (node.kind === 'repo') return 'repo'
+  return iconForType(node.itemType ?? 'doc')
+}
 
 interface Props {
   tree: TreeNode
@@ -62,6 +69,7 @@ function Row({
         ) : (
           <span style={{ width: 12, height: 12 }} />
         )}
+        <RetroIcon name={iconForNode(node)} size={16} />
         <span
           onClick={() => onSelect(node)}
           style={{ flex: 1 }}

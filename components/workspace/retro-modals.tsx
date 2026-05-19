@@ -1,6 +1,7 @@
 'use client'
 import useSWR from 'swr'
 import { RetroModal } from './retro-modal'
+import { useWorkspace } from '@/lib/workspace/store'
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
 
@@ -53,6 +54,112 @@ export function RetroRecsModal({ onClose }: { onClose: () => void }) {
           ))}
         </ul>
       )}
+    </RetroModal>
+  )
+}
+
+interface ScanRow {
+  id: string
+  startedAt: string
+  finishedAt: string | null
+  reposScanned: number | null
+  itemsFound: number | null
+  itemsBroken: number | null
+  itemsNew: number | null
+  itemsRemoved: number | null
+  itemsChanged: number | null
+  status: 'running' | 'done' | 'error'
+}
+
+export function RetroScanLogModal({ onClose }: { onClose: () => void }) {
+  const { data } = useSWR<ScanRow[]>('/api/registry?resource=scans', fetcher)
+  const scans = data ?? []
+  return (
+    <RetroModal title="Scan Log" onClose={onClose} width={700}>
+      {scans.length === 0 ? (
+        <p style={{ padding: 12, color: '#6b675d' }}>No scans yet.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: 'var(--rs-chrome-hi)', textAlign: 'left' }}>
+              {['Started', 'Status', 'Repos', 'Found', 'New', 'Removed', 'Changed', 'Broken'].map(
+                h => (
+                  <th key={h} style={{ padding: '2px 6px', borderRight: '1px solid #8e887b' }}>
+                    {h}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {scans.map(s => (
+              <tr key={s.id} style={{ borderBottom: '1px dotted #d8d4ca' }}>
+                <td style={{ padding: '2px 6px', fontFamily: 'var(--font-plex-mono)' }}>
+                  {new Date(s.startedAt).toLocaleString()}
+                </td>
+                <td
+                  style={{
+                    padding: '2px 6px',
+                    color: s.status === 'error' ? '#b22222' : s.status === 'running' ? '#1f7a3a' : undefined,
+                  }}
+                >
+                  {s.status}
+                </td>
+                <td style={{ padding: '2px 6px' }}>{s.reposScanned ?? '—'}</td>
+                <td style={{ padding: '2px 6px' }}>{s.itemsFound ?? '—'}</td>
+                <td style={{ padding: '2px 6px' }}>{s.itemsNew ?? '—'}</td>
+                <td style={{ padding: '2px 6px' }}>{s.itemsRemoved ?? '—'}</td>
+                <td style={{ padding: '2px 6px' }}>{s.itemsChanged ?? '—'}</td>
+                <td style={{ padding: '2px 6px', color: (s.itemsBroken ?? 0) > 0 ? '#b22222' : undefined }}>
+                  {s.itemsBroken ?? '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </RetroModal>
+  )
+}
+
+export function RetroSnoozedModal({ onClose }: { onClose: () => void }) {
+  return (
+    <RetroModal title="Snoozed Items" onClose={onClose} width={480}>
+      <p style={{ padding: 12, color: '#6b675d' }}>
+        No snoozed items. (Snooze via the Properties dialog on a selected file.)
+      </p>
+    </RetroModal>
+  )
+}
+
+export function RetroOptionsModal({ onClose }: { onClose: () => void }) {
+  const { openSettings } = useWorkspace()
+  return (
+    <RetroModal title="Options" onClose={onClose} width={440}>
+      <div style={{ padding: 12 }}>
+        <p style={{ fontSize: 11, marginBottom: 12 }}>
+          Configure discovery roots, scan intervals, LLM provider, and keyboard shortcuts in the
+          full Settings tab.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            openSettings()
+            onClose()
+          }}
+          style={{
+            padding: '4px 14px',
+            background: 'var(--rs-chrome)',
+            border: '2px solid',
+            borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+            boxShadow: 'inset 1px 1px 0 #fff, inset -1px -1px 0 var(--rs-chrome-deep)',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Open Settings
+        </button>
+      </div>
     </RetroModal>
   )
 }
