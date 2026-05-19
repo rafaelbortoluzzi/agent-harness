@@ -58,3 +58,16 @@ export const snoozedItems = sqliteTable('snoozed_items', {
   snoozedAt: text('snoozed_at').notNull(),
   untilDate: text('until_date'),
 })
+
+export const aiRuns = sqliteTable('ai_runs', {
+  id: text('id').primaryKey(),
+  action: text('action', { enum: ['judge', 'analyze', 'improve'] }).notNull(),
+  provider: text('provider'),
+  presetId: text('preset_id'),
+  target: text('target', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+  systemPrompt: text('system_prompt').notNull(),
+  userPrompt: text('user_prompt').notNull(),
+  resultSummary: text('result_summary'),
+  status: text('status', { enum: ['done', 'error'] }).notNull(),
+  createdAt: text('created_at').notNull(),
+})

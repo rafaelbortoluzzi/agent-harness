@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConfig } from '@/lib/config'
 import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm/provider'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
-import { getItemById, getItems, getRepos } from '@/lib/registry/queries'
+import { getItemById, getItems, getRepos, recordAiRun } from '@/lib/registry/queries'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import { normalizeActionTarget, type ActionTarget } from '@/lib/workspace/action-targets'
 
@@ -63,5 +63,16 @@ export async function POST(req: NextRequest) {
       errors.push(`${repo.path}: ${(err as Error).message}`)
     }
   }
-  return NextResponse.json({ recommendations: total, repos: repos.length, errors })
+  const result = { recommendations: total, repos: repos.length, errors }
+  recordAiRun({
+    action: 'analyze',
+    provider,
+    presetId: typeof body.presetId === 'string' ? body.presetId : null,
+    target: target as unknown as Record<string, unknown>,
+    systemPrompt: body.promptOverride?.system,
+    userPrompt: body.promptOverride?.prompt,
+    resultSummary: JSON.stringify(result),
+    status: errors.length ? 'error' : 'done',
+  })
+  return NextResponse.json(result)
 }

@@ -21,6 +21,17 @@ interface Scan {
   status: string
 }
 
+interface AiRun {
+  id: string
+  action: 'judge' | 'analyze' | 'improve'
+  provider: string | null
+  presetId: string | null
+  target: Record<string, unknown>
+  resultSummary: string | null
+  status: 'done' | 'error'
+  createdAt: string
+}
+
 function RecsSidebar() {
   const { data: recs = [] } = useSWR<Recommendation[]>('/api/recommendations', fetcher)
   const { openRecs } = useWorkspace()
@@ -70,10 +81,44 @@ function HistorySidebar() {
   const { data: scans = [] } = useSWR<Scan[]>('/api/registry?resource=scans', fetcher, {
     refreshInterval: 5000,
   })
+  const { data: aiRuns = [] } = useSWR<AiRun[]>('/api/llm/runs', fetcher, {
+    refreshInterval: 5000,
+  })
   return (
     <aside className="ah-explorer" aria-label="Scan history">
       <div className="ah-head">
-        <span>Scan Log</span>
+        <span>History</span>
+      </div>
+      <div style={{ padding: '8px 14px', color: 'var(--ah-fg-4)', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        AI Runs
+      </div>
+      {aiRuns.length === 0 && (
+        <div style={{ padding: '4px 14px 12px', fontSize: 11, color: 'var(--ah-fg-3)' }}>
+          No AI runs yet.
+        </div>
+      )}
+      <div style={{ overflow: 'auto', borderBottom: '1px solid var(--ah-line)' }}>
+        {aiRuns.slice(0, 8).map(run => (
+          <div
+            key={run.id}
+            style={{
+              padding: '8px 14px',
+              borderTop: '1px solid var(--ah-line)',
+              fontSize: 11,
+            }}
+          >
+            <div style={{ color: 'var(--ah-fg-1)' }}>
+              {run.action} · {run.provider ?? 'provider?'}
+            </div>
+            <div style={{ color: 'var(--ah-fg-4)', marginTop: 2, fontSize: 10 }}>
+              {run.presetId ?? 'custom prompt'} · {run.status} ·{' '}
+              {new Date(run.createdAt).toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: '8px 14px', color: 'var(--ah-fg-4)', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        Scan Log
       </div>
       {scans.length === 0 && (
         <div style={{ padding: '12px 14px', fontSize: 11, color: 'var(--ah-fg-3)' }}>

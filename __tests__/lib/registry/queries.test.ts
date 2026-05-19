@@ -16,6 +16,8 @@ import {
   getSnooze,
   deleteItemsMissingFromScan,
   unsnoozeItem,
+  recordAiRun,
+  getAiRuns,
 } from '@/lib/registry/queries'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
@@ -149,5 +151,32 @@ describe('queries', () => {
     const scan = getScan(id)
     expect(scan?.status).toBe('error')
     expect(scan?.error).toBe('boom')
+  })
+
+  it('records AI run history with prompt details', () => {
+    const id = recordAiRun({
+      action: 'judge',
+      provider: 'codex-cli',
+      presetId: 'personal-fit',
+      target: { scope: 'unit', itemId: 'skill-1' },
+      systemPrompt: 'system text',
+      userPrompt: 'user text',
+      resultSummary: '{"judged":1}',
+      status: 'done',
+    })
+
+    const runs = getAiRuns()
+
+    expect(runs[0]).toMatchObject({
+      id,
+      action: 'judge',
+      provider: 'codex-cli',
+      presetId: 'personal-fit',
+      target: { scope: 'unit', itemId: 'skill-1' },
+      systemPrompt: 'system text',
+      userPrompt: 'user text',
+      resultSummary: '{"judged":1}',
+      status: 'done',
+    })
   })
 })
