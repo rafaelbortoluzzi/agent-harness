@@ -10,11 +10,12 @@ import { StatusBar } from './status-bar'
 import { KeyboardHandler } from './keyboard-handler'
 import { CommandPalette } from './command-palette'
 import { HelpDialog } from './help-dialog'
+import { RetroShell } from './retro-shell'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <WorkspaceProvider>
-      <ShellInner />
+      <ShellSwitcher />
       <KeyboardHandler />
       <CommandPalette />
       <HelpDialog />
@@ -25,7 +26,13 @@ export function Shell({ children }: { children: ReactNode }) {
   )
 }
 
-function ShellInner() {
+function ShellSwitcher() {
+  const { state } = useWorkspace()
+  if (state.skin === 'retro') return <RetroShell />
+  return <ModernShellInner />
+}
+
+function ModernShellInner() {
   const { state } = useWorkspace()
   return (
     <div className={`ah-shell${state.sidebarHidden ? ' collapsed' : ''}`}>

@@ -3,6 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   type ReactNode,
@@ -11,6 +12,22 @@ import {
 export type View = 'explorer' | 'search' | 'recs' | 'history'
 
 export type BottomTab = 'problems' | 'output' | 'terminal'
+
+export type Skin = 'modern' | 'retro'
+
+const SKIN_STORAGE_KEY = 'ah:skin'
+
+function readStoredSkin(): Skin {
+  if (typeof window === 'undefined') return 'modern'
+  const v = window.localStorage.getItem(SKIN_STORAGE_KEY)
+  return v === 'retro' ? 'retro' : 'modern'
+}
+
+function persistSkin(skin: Skin) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(SKIN_STORAGE_KEY, skin)
+  document.documentElement.dataset.skin = skin
+}
 
 export type Tab =
   | { id: 'welcome'; kind: 'welcome'; name: string }
@@ -38,6 +55,7 @@ export interface WorkspaceState {
   palOpen: boolean
   helpOpen: boolean
   scanning: boolean
+  skin: Skin
 }
 
 const WELCOME_TAB: Tab = { id: 'welcome', kind: 'welcome', name: 'Welcome' }
@@ -56,6 +74,7 @@ const initialState: WorkspaceState = {
   palOpen: false,
   helpOpen: false,
   scanning: false,
+  skin: 'modern',
 }
 
 type Action =
@@ -72,6 +91,7 @@ type Action =
   | { type: 'set-pal-open'; open: boolean }
   | { type: 'set-help-open'; open: boolean }
   | { type: 'set-scanning'; scanning: boolean }
+  | { type: 'set-skin'; skin: Skin }
 
 function reducer(state: WorkspaceState, action: Action): WorkspaceState {
   switch (action.type) {
@@ -125,6 +145,8 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
       return { ...state, helpOpen: action.open }
     case 'set-scanning':
       return { ...state, scanning: action.scanning }
+    case 'set-skin':
+      return { ...state, skin: action.skin }
     default:
       return state
   }
@@ -150,12 +172,21 @@ interface WorkspaceContextValue {
   setPalOpen: (open: boolean) => void
   setHelpOpen: (open: boolean) => void
   setScanning: (scanning: boolean) => void
+  setSkin: (skin: Skin) => void
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  // Hydrate skin from localStorage post-mount (avoid SSR mismatch).
+  useEffect(() => {
+    const stored = readStoredSkin()
+    if (stored !== state.skin) dispatch({ type: 'set-skin', skin: stored })
+    document.documentElement.dataset.skin = stored
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openTab = useCallback((tab: Tab) => dispatch({ type: 'open-tab', tab }), [])
   const openWelcome = useCallback(() => dispatch({ type: 'open-tab', tab: WELCOME_TAB }), [])
@@ -215,6 +246,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (scanning: boolean) => dispatch({ type: 'set-scanning', scanning }),
     [],
   )
+  const setSkin = useCallback((skin: Skin) => {
+    persistSkin(skin)
+    dispatch({ type: 'set-skin', skin })
+  }, [])
 
   const value = useMemo<WorkspaceContextValue>(
     () => ({
@@ -237,6 +272,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setPalOpen,
       setHelpOpen,
       setScanning,
+      setSkin,
     }),
     [
       state,
@@ -258,6 +294,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setPalOpen,
       setHelpOpen,
       setScanning,
+      setSkin,
     ],
   )
 

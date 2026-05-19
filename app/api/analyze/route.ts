@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getConfig } from '@/lib/config'
 import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm/provider'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
-import { getItemById, getItems, getRepos } from '@/lib/registry/queries'
+import { getItemById, getItems, getRepos, recordAiRun } from '@/lib/registry/queries'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import { normalizeActionTarget, type ActionTarget } from '@/lib/workspace/action-targets'
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     ? ({ scope: 'repo', repoPath: body.repoPath as string } satisfies ActionTarget)
     : normalizeActionTarget(body.target)
   const repos = repoTargets(target)
+  const personalContext = getConfig().personalHarnessPreferences ?? ''
 
   let total = 0
   const errors: string[] = []
@@ -49,10 +51,28 @@ export async function POST(req: NextRequest) {
           ? [getItemById(repo.target.itemId)].filter(item => item !== null)
           : getItems({ repoPath: repo.path })
     try {
-      total += await analyzeAndPersist(repo.path, items, { provider, target: repo.target })
+      const analyzeOptions = {
+        provider,
+        target: repo.target,
+        ...(typeof body.presetId === 'string' ? { presetId: body.presetId } : {}),
+        ...(body.promptOverride ? { promptOverride: body.promptOverride } : {}),
+        ...(personalContext ? { personalContext } : {}),
+      }
+      total += await analyzeAndPersist(repo.path, items, analyzeOptions)
     } catch (err) {
       errors.push(`${repo.path}: ${(err as Error).message}`)
     }
   }
-  return NextResponse.json({ recommendations: total, repos: repos.length, errors })
+  const result = { recommendations: total, repos: repos.length, errors }
+  recordAiRun({
+    action: 'analyze',
+    provider,
+    presetId: typeof body.presetId === 'string' ? body.presetId : null,
+    target: target as unknown as Record<string, unknown>,
+    systemPrompt: body.promptOverride?.system,
+    userPrompt: body.promptOverride?.prompt,
+    resultSummary: JSON.stringify(result),
+    status: errors.length ? 'error' : 'done',
+  })
+  return NextResponse.json(result)
 }

@@ -854,6 +854,80 @@
   font-size: 10px;
   border-radius: 2px;
 }
+.ah-prompt-preview {
+  display: flex;
+  flex-direction: column;
+}
+.ah-prompt-preview-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ah-line);
+  color: var(--ah-fg-3);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.ah-prompt-preview-head button {
+  background: transparent;
+  border: 1px solid var(--ah-line-2);
+  color: var(--ah-fg-1);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 9px;
+  border-radius: 2px;
+  text-transform: none;
+}
+.ah-prompt-preview-head button:hover {
+  background: var(--ah-bg-4);
+  color: var(--ah-fg-0);
+}
+.ah-prompt-preview-head button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.ah-prompt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ah-line);
+  color: var(--ah-fg-3);
+  font-size: 11px;
+}
+.ah-prompt-editor {
+  width: 100%;
+  background: var(--ah-bg-1);
+  border: 1px solid var(--ah-line-2);
+  color: var(--ah-fg-1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ah-prompt-editor:focus-within {
+  border-color: var(--ah-line-4);
+}
+.ah-prompt-editor .cm-editor {
+  height: 100%;
+  min-height: inherit;
+  background: transparent;
+  color: var(--ah-fg-1);
+  font-family: var(--ah-font);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ah-prompt-editor .cm-scroller {
+  min-height: inherit;
+}
+.ah-prompt-note,
+.ah-prompt-error {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ah-line);
+  font-size: 11px;
+}
+.ah-prompt-note { color: var(--ah-fg-4); }
+.ah-prompt-error { color: var(--ah-red); }
 .ah-dialog-footer {
   display: flex;
   justify-content: flex-end;
@@ -2060,3 +2134,262 @@
   0%, 100% { box-shadow: 0 0 0 0 oklch(0.88 0.13 145 / 0); }
   50% { box-shadow: 0 0 12px 0 oklch(0.88 0.13 145 / 0.5); }
 }
+
+/* =========================================================================
+   Retro skin — scoped under [data-skin="retro"] on <html>.
+   Tokens + bevel utilities from design_handoff_retro_skin/README.md.
+   Only the shell scaffolding consumes these for now.
+   ========================================================================= */
+
+[data-skin="retro"] {
+  /* Chrome */
+  --rs-chrome: #c6c2b6;
+  --rs-chrome-lo: #8e887b;
+  --rs-chrome-hi: #efece2;
+  --rs-chrome-shadow: #5a564c;
+  --rs-chrome-deep: #2c2a24;
+
+  /* Title bar */
+  --rs-title-a: #1c3a6e;
+  --rs-title-b: #4d82c0;
+  --rs-title-inactive-a: #7e7a6f;
+  --rs-title-inactive-b: #a8a496;
+
+  /* Folder */
+  --rs-folder-front: #f4c243;
+  --rs-folder-back: #e09a1c;
+  --rs-folder-line: #4a2f06;
+
+  /* Status */
+  --rs-ok: #1f7a3a;
+  --rs-warn: #cc8a00;
+  --rs-bad: #b22222;
+  --rs-link: #1a3a8e;
+
+  /* Editor */
+  --rs-ed-bg: #000000;
+  --rs-ed-fg: #d6d2c4;
+  --rs-ed-dim: #6b675d;
+  --rs-ed-accent: #f4c243;
+  --rs-ed-accent-2: #d6a020;
+  --rs-ed-blue: #6cb0e8;
+  --rs-ed-mag: #d97aaa;
+  --rs-ed-sel: #2e5a99;
+  --rs-ed-status: #1c3a6e;
+
+  /* Typography */
+  --rs-font-ui: "Tahoma", "Geneva", "DejaVu Sans", "Verdana", sans-serif;
+  --rs-font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
+  --rs-font-editor: var(--font-vt323), var(--font-plex-mono), ui-monospace, monospace;
+}
+
+[data-skin="retro"] body {
+  font-family: var(--rs-font-ui);
+  font-size: 11px;
+  color: #1a1814;
+  background: var(--rs-chrome);
+  -webkit-font-smoothing: none;
+  text-rendering: geometricPrecision;
+}
+
+/* Bevels */
+[data-skin="retro"] .rs-bev-raised {
+  background: var(--rs-chrome);
+  border: 2px solid;
+  border-color: var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi);
+  box-shadow:
+    inset 1px 1px 0 #fff,
+    inset -1px -1px 0 var(--rs-chrome-deep);
+}
+
+[data-skin="retro"] .rs-bev-inset {
+  background: #fff;
+  border: 2px solid;
+  border-color: var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow);
+  box-shadow:
+    inset 1px 1px 0 var(--rs-chrome-deep),
+    inset -1px -1px 0 #fff;
+}
+
+/* Shell skeleton */
+[data-skin="retro"] .rs-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--rs-chrome);
+  color: #1a1814;
+  overflow: hidden;
+}
+
+[data-skin="retro"] .rs-titlebar {
+  height: 24px;
+  padding: 0 3px 0 8px;
+  display: flex;
+  align-items: center;
+  background: var(--rs-title-grad, linear-gradient(90deg, var(--rs-title-a), var(--rs-title-b)));
+  border-bottom: 1px solid var(--rs-chrome-deep);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  gap: 6px;
+}
+
+[data-skin="retro"] .rs-titlebar-spacer { flex: 1; }
+
+[data-skin="retro"] .rs-titlebar-btn {
+  width: 18px;
+  height: 16px;
+  background: var(--rs-chrome);
+  border: 2px solid;
+  border-color: var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi);
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 var(--rs-chrome-deep);
+  color: #1a1814;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-skin="retro"] .rs-menubar {
+  height: 21px;
+  background: var(--rs-chrome);
+  padding: 1px 2px;
+  border-bottom: 1px solid var(--rs-chrome-lo);
+  display: flex;
+  gap: 0;
+}
+
+[data-skin="retro"] .rs-menu-item {
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: default;
+  user-select: none;
+}
+
+[data-skin="retro"] .rs-menu-item:hover {
+  background: var(--rs-title-a);
+  color: #fff;
+}
+
+[data-skin="retro"] .rs-toolbar {
+  height: 50px;
+  background: var(--rs-chrome);
+  padding: 3px;
+  border-bottom: 1px solid var(--rs-chrome-lo);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+[data-skin="retro"] .rs-tool-btn {
+  min-width: 44px;
+  height: 38px;
+  background: transparent;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  color: #1a1814;
+}
+
+[data-skin="retro"] .rs-tool-btn:hover {
+  border-color: var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi);
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 var(--rs-chrome-deep);
+}
+
+[data-skin="retro"] .rs-tool-btn:active {
+  border-color: var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow);
+  box-shadow: inset 1px 1px 0 var(--rs-chrome-deep), inset -1px -1px 0 #fff;
+}
+
+[data-skin="retro"] .rs-tool-sep {
+  width: 2px;
+  align-self: stretch;
+  margin: 4px 2px;
+  border-left: 1px solid var(--rs-chrome-shadow);
+  border-right: 1px solid var(--rs-chrome-hi);
+}
+
+[data-skin="retro"] .rs-address {
+  height: 28px;
+  background: var(--rs-chrome);
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+[data-skin="retro"] .rs-address-label {
+  font-weight: 700;
+  font-size: 11px;
+  padding-right: 4px;
+}
+
+[data-skin="retro"] .rs-address-input {
+  flex: 1;
+  height: 22px;
+  background: #fff;
+  border: 2px solid;
+  border-color: var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow);
+  box-shadow: inset 1px 1px 0 var(--rs-chrome-deep), inset -1px -1px 0 #fff;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #1a1814;
+}
+
+[data-skin="retro"] .rs-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+[data-skin="retro"] .rs-tree {
+  width: 240px;
+  background: #fff;
+  border: 2px solid;
+  border-color: var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow);
+  box-shadow: inset 1px 1px 0 var(--rs-chrome-deep), inset -1px -1px 0 #fff;
+  margin: 2px 0 2px 2px;
+  overflow: auto;
+  font-size: 11px;
+}
+
+[data-skin="retro"] .rs-splitter {
+  width: 4px;
+  background: var(--rs-chrome);
+  cursor: col-resize;
+}
+
+[data-skin="retro"] .rs-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--rs-chrome);
+}
+
+[data-skin="retro"] .rs-statusbar {
+  height: 20px;
+  background: var(--rs-chrome);
+  border-top: 1px solid var(--rs-chrome-hi);
+  padding: 2px;
+  display: flex;
+  gap: 2px;
+  font-size: 11px;
+}
+
+[data-skin="retro"] .rs-status-seg {
+  padding: 1px 6px;
+  background: var(--rs-chrome);
+  border: 1px solid;
+  border-color: var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow);
+  white-space: nowrap;
+}
+
+[data-skin="retro"] .rs-status-seg.flex { flex: 1; }

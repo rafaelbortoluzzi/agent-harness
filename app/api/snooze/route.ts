@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSnooze, snoozeItem, unsnoozeItem } from '@/lib/registry/queries'
+import { getSnooze, listSnoozed, snoozeItem, unsnoozeItem } from '@/lib/registry/queries'
 
 interface SnoozeBody {
   itemId?: string
@@ -21,7 +21,11 @@ function untilDate(days: number | undefined): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  const itemId = new URL(req.url).searchParams.get('itemId')
+  const sp = new URL(req.url).searchParams
+  if (sp.get('list') === 'true') {
+    return NextResponse.json({ snoozed: listSnoozed() })
+  }
+  const itemId = sp.get('itemId')
   if (!itemId) return NextResponse.json({ error: 'itemId is required' }, { status: 400 })
 
   return NextResponse.json({ snooze: getSnooze(itemId) })

@@ -9,6 +9,40 @@ import {
   saveBindings,
   type Binding,
 } from '@/lib/keyboard/bindings'
+import { useWorkspace } from '@/lib/workspace/store'
+
+function AppearanceSection() {
+  const { state, setSkin } = useWorkspace()
+  return (
+    <section className="ah-settings-section">
+      <h2>Appearance</h2>
+      <p style={{ fontSize: 11, color: 'var(--ah-fg-3)', margin: '0 0 10px' }}>
+        Pick UI skin. Saved per-browser. Modern: VS Code-style workspace. Retro: silver-chrome
+        desktop OS aesthetic.
+      </p>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="radio"
+            name="skin"
+            checked={state.skin === 'modern'}
+            onChange={() => setSkin('modern')}
+          />
+          Modern
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="radio"
+            name="skin"
+            checked={state.skin === 'retro'}
+            onChange={() => setSkin('retro')}
+          />
+          Retro
+        </label>
+      </div>
+    </section>
+  )
+}
 
 interface Config {
   roots: string[]
@@ -20,6 +54,7 @@ interface Config {
   llmEditorConnected: boolean
   llmProvider: string
   llmProviders: LlmProviderStatus[]
+  personalHarnessPreferences: string
 }
 
 interface LlmProviderStatus {
@@ -187,6 +222,8 @@ export function SettingsView() {
         {saved && <span style={{ color: 'oklch(0.78 0.14 145)', marginLeft: 12 }}>✓ saved</span>}
       </p>
 
+      <AppearanceSection />
+
       <section className="ah-settings-section">
         <h2>Auto-discovery roots</h2>
         <p style={{ fontSize: 11, color: 'var(--ah-fg-3)', margin: '0 0 10px' }}>
@@ -288,6 +325,20 @@ export function SettingsView() {
             Add
           </button>
         </div>
+      </section>
+
+      <section className="ah-settings-section">
+        <h2>Personal harness preferences</h2>
+        <p style={{ fontSize: 11, color: 'var(--ah-fg-3)', margin: '0 0 10px' }}>
+          Added to default judge and analysis prompts before you review or edit them.
+        </p>
+        <textarea
+          className="ah-editor-textarea allow-shortcuts"
+          value={cfg.personalHarnessPreferences}
+          onChange={e => save({ personalHarnessPreferences: e.target.value })}
+          rows={5}
+          placeholder="Example: Prefer repo-local skills for repeated workflows. Optimize for token savings, clear triggers, and small focused skills."
+        />
       </section>
 
       <section className="ah-settings-section">

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm'
 import { getDb } from './db'
-import { items, recommendations, repos, scans, snoozedItems } from './schema'
+import { aiRuns, items, recommendations, repos, scans, snoozedItems } from './schema'
 import type {
   Health,
   ItemType,
@@ -22,6 +22,20 @@ export interface ItemFilter {
 export interface Page {
   limit?: number
   offset?: number
+}
+
+export type AiRunAction = 'judge' | 'analyze' | 'improve'
+export type AiRunStatus = 'done' | 'error'
+
+export interface AiRunInput {
+  action: AiRunAction
+  provider?: string | null
+  presetId?: string | null
+  target: Record<string, unknown>
+  systemPrompt?: string
+  userPrompt?: string
+  resultSummary?: string | null
+  status: AiRunStatus
 }
 
 export function upsertItem(item: RegistryItem): void {
@@ -225,6 +239,25 @@ export function getSnooze(itemId: string) {
   return getDb().select().from(snoozedItems).where(eq(snoozedItems.itemId, itemId)).get() ?? null
 }
 
+export function listSnoozed() {
+  return getDb()
+    .select({
+      itemId: snoozedItems.itemId,
+      reason: snoozedItems.reason,
+      snoozedAt: snoozedItems.snoozedAt,
+      untilDate: snoozedItems.untilDate,
+      name: items.name,
+      type: items.type,
+      runtime: items.runtime,
+      path: items.path,
+      repoPath: items.repoPath,
+    })
+    .from(snoozedItems)
+    .leftJoin(items, eq(snoozedItems.itemId, items.id))
+    .orderBy(snoozedItems.snoozedAt)
+    .all()
+}
+
 export function setVerdict(itemId: string, score: number, rationale: string): void {
   getDb()
     .update(items)
@@ -278,4 +311,28 @@ export function getRecommendationById(id: string) {
 
 export function clearRecommendations(repoPath: string): void {
   getDb().delete(recommendations).where(eq(recommendations.repoPath, repoPath)).run()
+}
+
+export function recordAiRun(input: AiRunInput): string {
+  const id = randomUUID()
+  getDb()
+    .insert(aiRuns)
+    .values({
+      id,
+      action: input.action,
+      provider: input.provider ?? null,
+      presetId: input.presetId ?? null,
+      target: input.target,
+      systemPrompt: input.systemPrompt ?? '',
+      userPrompt: input.userPrompt ?? '',
+      resultSummary: input.resultSummary ?? null,
+      status: input.status,
+      createdAt: new Date().toISOString(),
+    })
+    .run()
+  return id
+}
+
+export function getAiRuns(limit = 50) {
+  return getDb().select().from(aiRuns).orderBy(desc(aiRuns.createdAt)).limit(limit).all()
 }

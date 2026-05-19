@@ -49,6 +49,26 @@ args = ["-y", "@playwright/mcp@latest"]
     expect(items.some(i => i.scope === 'personal' && i.type === 'instruction')).toBe(true)
   })
 
+  it('scans personal skills directory', async () => {
+    const skillDir = path.join(tmp, 'skills', 'my-skill')
+    fs.mkdirSync(skillDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(skillDir, 'SKILL.md'),
+      '---\nname: my-skill\ndescription: test\n---\nBody',
+    )
+
+    const items = await adapter.scanPersonal()
+    const skill = items.find(i => i.type === 'skill' && i.name === 'my-skill')
+
+    expect(skill).toBeDefined()
+    expect(skill).toMatchObject({
+      runtime: 'codex',
+      scope: 'personal',
+      repoPath: null,
+    })
+    expect(skill!.metadata).toMatchObject({ description: 'test' })
+  })
+
   it('scans prompts dir as commands', async () => {
     fs.mkdirSync(path.join(tmp, 'prompts'))
     fs.writeFileSync(path.join(tmp, 'prompts', 'review.md'), '# Review')

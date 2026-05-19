@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/analyze/route'
 import { getLlmProviderName, hasLlmProvider } from '@/lib/llm/provider'
 import { analyzeAndPersist } from '@/lib/llm/gap-analyst'
-import { getItems, getRepos } from '@/lib/registry/queries'
+import { getItems, getRepos, recordAiRun } from '@/lib/registry/queries'
 
 jest.mock('@/lib/llm/provider', () => ({
   getLlmProviderName: jest.fn(),
@@ -19,6 +19,7 @@ jest.mock('@/lib/llm/gap-analyst', () => ({
 jest.mock('@/lib/registry/queries', () => ({
   getItems: jest.fn(),
   getRepos: jest.fn(),
+  recordAiRun: jest.fn(),
 }))
 
 const mockedGetLlmProviderName = getLlmProviderName as jest.Mock
@@ -26,6 +27,7 @@ const mockedHasLlmProvider = hasLlmProvider as jest.Mock
 const mockedAnalyzeAndPersist = analyzeAndPersist as jest.Mock
 const mockedGetItems = getItems as jest.Mock
 const mockedGetRepos = getRepos as jest.Mock
+const mockedRecordAiRun = recordAiRun as jest.Mock
 
 describe('/api/analyze', () => {
   beforeEach(() => {
@@ -54,6 +56,14 @@ describe('/api/analyze', () => {
       provider: 'codex-cli',
       target: { scope: 'repo', repoPath: '/repo-a' },
     })
+    expect(mockedRecordAiRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'analyze',
+        provider: 'codex-cli',
+        status: 'done',
+        resultSummary: '{"recommendations":2,"repos":2,"errors":[]}',
+      }),
+    )
   })
 
   it('can analyze a repo section only', async () => {

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/judge/route'
 import { getLlmProviderName, hasLlmProvider } from '@/lib/llm/provider'
 import { judgeUnjudged } from '@/lib/llm/judge-runner'
+import { recordAiRun } from '@/lib/registry/queries'
 
 jest.mock('@/lib/llm/provider', () => ({
   getLlmProviderName: jest.fn(),
@@ -15,9 +16,14 @@ jest.mock('@/lib/llm/judge-runner', () => ({
   judgeUnjudged: jest.fn(),
 }))
 
+jest.mock('@/lib/registry/queries', () => ({
+  recordAiRun: jest.fn(),
+}))
+
 const mockedHasLlmProvider = hasLlmProvider as jest.Mock
 const mockedGetLlmProviderName = getLlmProviderName as jest.Mock
 const mockedJudgeUnjudged = judgeUnjudged as jest.Mock
+const mockedRecordAiRun = recordAiRun as jest.Mock
 
 describe('/api/judge', () => {
   beforeEach(() => {
@@ -57,6 +63,14 @@ describe('/api/judge', () => {
       provider: 'claude-code-cli',
       target: { scope: 'all' },
     })
+    expect(mockedRecordAiRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'judge',
+        provider: 'claude-code-cli',
+        status: 'done',
+        resultSummary: '{"judged":1,"failed":0}',
+      }),
+    )
   })
 
   it('runs judge for a selected provider and repo section target', async () => {

@@ -22,6 +22,7 @@ describe('config', () => {
     expect(c.discoveryDepth).toBe(2)
     expect(c.respectGitignore).toBe(true)
     expect(c.llmProvider).toBeUndefined()
+    expect(c.personalHarnessPreferences).toBe('')
   })
 
   it('persists changes', () => {
@@ -32,12 +33,14 @@ describe('config', () => {
       respectGitignore: false,
       healthWeights: {},
       llmProvider: 'codex-cli',
+      personalHarnessPreferences: 'Prefer repo-local skills for repeated workflows.',
     })
     const c = getConfig()
     expect(c.roots).toEqual(['/x'])
     expect(c.discoveryDepth).toBe(3)
     expect(c.respectGitignore).toBe(false)
     expect(c.llmProvider).toBe('codex-cli')
+    expect(c.personalHarnessPreferences).toContain('repo-local skills')
   })
 
   it('throws on malformed JSON', () => {

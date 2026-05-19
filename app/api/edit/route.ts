@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasApiKey } from '@/lib/llm/client'
 import { applyEdit, completeEdit, streamEdit } from '@/lib/llm/editor'
 import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm/provider'
-import { getItemById } from '@/lib/registry/queries'
+import { getItemById, recordAiRun } from '@/lib/registry/queries'
 
 export async function POST(req: NextRequest) {
-  const { itemId, prompt, apply, content, provider, mode } = await req.json()
+  const { itemId, prompt, apply, content, provider, mode, promptOverride } = await req.json()
 
   if (apply) {
     const item = getItemById(itemId)
@@ -30,8 +30,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `LLM provider ${selected} is not configured` }, { status: 400 })
     }
     try {
-      return NextResponse.json({ content: await completeEdit(item, prompt as string, selected) })
+      const content = await completeEdit(item, prompt as string, selected, { promptOverride })
+      recordAiRun({
+        action: 'improve',
+        provider: selected,
+        target: { scope: 'unit', itemId: item.id, repoPath: item.repoPath, itemType: item.type },
+        systemPrompt: promptOverride?.system,
+        userPrompt: promptOverride?.prompt ?? prompt,
+        resultSummary: JSON.stringify({ bytes: content.length }),
+        status: 'done',
+      })
+      return NextResponse.json({ content })
     } catch (err) {
+      recordAiRun({
+        action: 'improve',
+        provider: selected,
+        target: { scope: 'unit', itemId: item.id, repoPath: item.repoPath, itemType: item.type },
+        systemPrompt: promptOverride?.system,
+        userPrompt: promptOverride?.prompt ?? prompt,
+        resultSummary: err instanceof Error ? err.message : 'Edit failed',
+        status: 'error',
+      })
       return NextResponse.json(
         { error: err instanceof Error ? err.message : 'Edit failed' },
         { status: 500 },
