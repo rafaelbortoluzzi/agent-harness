@@ -40,6 +40,14 @@ import {
   type RetroModalKind,
 } from '@/lib/workspace/retro-modal'
 import { computeSplitterWidth } from '@/lib/workspace/retro-splitter'
+import {
+  cssVarsFromTweaks,
+  defaultTweaks,
+  loadTweaks,
+  saveTweaks,
+  type RetroTweaks,
+} from '@/lib/workspace/retro-tweaks'
+import { RetroTweaksModal } from './retro-tweaks-modal'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import type { PanelItem } from '@/components/item-side-panel'
 
@@ -148,6 +156,18 @@ export function RetroShell() {
   const [navState, dispatch] = useReducer(retroNavReducer, initialRetroNavState)
   const [sort, setSort] = useState<SortSpec>({ key: 'name', dir: 'asc' })
   const [treeWidth, setTreeWidth] = useState(240)
+  const [tweaks, setTweaks] = useState<RetroTweaks>(defaultTweaks)
+  const [tweaksOpen, setTweaksOpen] = useState(false)
+
+  useEffect(() => {
+    setTweaks(loadTweaks())
+  }, [])
+
+  useEffect(() => {
+    const vars = cssVarsFromTweaks(tweaks)
+    for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v)
+    saveTweaks(tweaks)
+  }, [tweaks])
   const dragRef = useRef<{ baseWidth: number; startX: number } | null>(null)
 
   useEffect(() => {
@@ -339,6 +359,10 @@ export function RetroShell() {
           <RetroIcon name="props" size={20} />
           <span>About</span>
         </button>
+        <button className="rs-tool-btn" onClick={() => setTweaksOpen(true)}>
+          <RetroIcon name="cog" size={20} />
+          <span>Tweaks</span>
+        </button>
         <div style={{ flex: 1 }} />
         <button
           className="rs-tool-btn"
@@ -415,7 +439,13 @@ export function RetroShell() {
             {(() => {
               const activeTab = state.tabs.find(t => t.id === state.current)
               if (activeTab && activeTab.kind === 'editor') {
-                return <RetroEditorTab tabId={activeTab.id} runtime="claude" />
+                return (
+                  <RetroEditorTab
+                    tabId={activeTab.id}
+                    runtime="claude"
+                    scanlines={tweaks.scanlines}
+                  />
+                )
               }
               return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
@@ -549,6 +579,13 @@ export function RetroShell() {
       {modal.kind === 'scan-log' && <RetroScanLogModal onClose={closeModal} />}
       {modal.kind === 'snoozed' && <RetroSnoozedModal onClose={closeModal} />}
       {modal.kind === 'options' && <RetroOptionsModal onClose={closeModal} />}
+      {tweaksOpen && (
+        <RetroTweaksModal
+          tweaks={tweaks}
+          onChange={setTweaks}
+          onClose={() => setTweaksOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -644,7 +681,15 @@ interface FileResponse {
   mtimeMs: number
 }
 
-function RetroEditorTab({ tabId, runtime }: { tabId: string; runtime: string }) {
+function RetroEditorTab({
+  tabId,
+  runtime,
+  scanlines,
+}: {
+  tabId: string
+  runtime: string
+  scanlines: boolean
+}) {
   const file = useSWR<FileResponse>(`/api/file?id=${encodeURIComponent(tabId)}`, fetcher)
   if (file.error) {
     return (
@@ -664,6 +709,7 @@ function RetroEditorTab({ tabId, runtime }: { tabId: string; runtime: string }) 
       runtime={runtime}
       path={file.data.path}
       tabId={tabId}
+      scanlines={scanlines}
       onSaved={() => file.mutate()}
     />
   )

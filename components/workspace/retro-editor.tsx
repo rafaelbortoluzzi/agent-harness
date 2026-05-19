@@ -16,6 +16,7 @@ interface Props {
   runtime: string
   path?: string
   tabId?: string
+  scanlines?: boolean
   onSaved?: () => void
 }
 
@@ -28,7 +29,7 @@ function languageFor(path?: string): Extension | null {
   return markdown()
 }
 
-export function RetroEditor({ source, runtime, path, tabId, onSaved }: Props) {
+export function RetroEditor({ source, runtime, path, tabId, scanlines = true, onSaved }: Props) {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState)
 
   useEffect(() => {
@@ -165,17 +166,19 @@ export function RetroEditor({ source, runtime, path, tabId, onSaved }: Props) {
           Ln {lineCount}, Col 1 · {byteCount} bytes · {runtime}
         </span>
       </div>
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          background:
-            'repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)',
-          zIndex: 1,
-        }}
-      />
+      {scanlines && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)',
+            zIndex: 1,
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -122,12 +122,97 @@ export function RetroScanLogModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+interface SnoozedRow {
+  itemId: string
+  reason: string | null
+  snoozedAt: string
+  untilDate: string | null
+  name: string | null
+  type: string | null
+  runtime: string | null
+  path: string | null
+  repoPath: string | null
+}
+
 export function RetroSnoozedModal({ onClose }: { onClose: () => void }) {
+  const { data, mutate } = useSWR<{ snoozed: SnoozedRow[] }>('/api/snooze?list=true', fetcher)
+  const { openEditor } = useWorkspace()
+  const rows = data?.snoozed ?? []
+
+  const unsnooze = async (itemId: string) => {
+    await fetch('/api/snooze', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    })
+    await mutate()
+  }
+
   return (
-    <RetroModal title="Snoozed Items" onClose={onClose} width={480}>
-      <p style={{ padding: 12, color: '#6b675d' }}>
-        No snoozed items. (Snooze via the Properties dialog on a selected file.)
-      </p>
+    <RetroModal title="Snoozed Items" onClose={onClose} width={520}>
+      {rows.length === 0 ? (
+        <p style={{ padding: 12, color: '#6b675d' }}>
+          No snoozed items.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {rows.map(r => (
+            <li
+              key={r.itemId}
+              style={{
+                padding: '8px 10px',
+                borderBottom: '1px dotted #d8d4ca',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{r.name ?? r.itemId}</div>
+                <div style={{ fontSize: 10, color: '#6b675d' }}>
+                  {r.type ?? '—'} · snoozed {new Date(r.snoozedAt).toLocaleDateString()}
+                  {r.untilDate ? ` · until ${new Date(r.untilDate).toLocaleDateString()}` : ''}
+                </div>
+                {r.reason && <div style={{ fontSize: 11, color: '#4a4740' }}>{r.reason}</div>}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (r.name && r.type && r.path) {
+                    openEditor({ id: r.itemId, name: r.name, type: r.type, path: r.path })
+                    onClose()
+                  }
+                }}
+                disabled={!r.path || !r.name}
+                style={{
+                  padding: '2px 10px',
+                  background: 'var(--rs-chrome)',
+                  border: '2px solid',
+                  borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                }}
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                onClick={() => unsnooze(r.itemId)}
+                style={{
+                  padding: '2px 10px',
+                  background: 'var(--rs-chrome)',
+                  border: '2px solid',
+                  borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                }}
+              >
+                Unsnooze
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </RetroModal>
   )
 }

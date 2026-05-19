@@ -239,6 +239,25 @@ export function getSnooze(itemId: string) {
   return getDb().select().from(snoozedItems).where(eq(snoozedItems.itemId, itemId)).get() ?? null
 }
 
+export function listSnoozed() {
+  return getDb()
+    .select({
+      itemId: snoozedItems.itemId,
+      reason: snoozedItems.reason,
+      snoozedAt: snoozedItems.snoozedAt,
+      untilDate: snoozedItems.untilDate,
+      name: items.name,
+      type: items.type,
+      runtime: items.runtime,
+      path: items.path,
+      repoPath: items.repoPath,
+    })
+    .from(snoozedItems)
+    .leftJoin(items, eq(snoozedItems.itemId, items.id))
+    .orderBy(snoozedItems.snoozedAt)
+    .all()
+}
+
 export function setVerdict(itemId: string, score: number, rationale: string): void {
   getDb()
     .update(items)

@@ -2221,7 +2221,7 @@
   padding: 0 3px 0 8px;
   display: flex;
   align-items: center;
-  background: linear-gradient(90deg, var(--rs-title-a), var(--rs-title-b));
+  background: var(--rs-title-grad, linear-gradient(90deg, var(--rs-title-a), var(--rs-title-b)));
   border-bottom: 1px solid var(--rs-chrome-deep);
   color: #fff;
   font-weight: 700;
