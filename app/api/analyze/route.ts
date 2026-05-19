@@ -49,7 +49,13 @@ export async function POST(req: NextRequest) {
           ? [getItemById(repo.target.itemId)].filter(item => item !== null)
           : getItems({ repoPath: repo.path })
     try {
-      total += await analyzeAndPersist(repo.path, items, { provider, target: repo.target })
+      const analyzeOptions = {
+        provider,
+        target: repo.target,
+        ...(typeof body.presetId === 'string' ? { presetId: body.presetId } : {}),
+        ...(body.promptOverride ? { promptOverride: body.promptOverride } : {}),
+      }
+      total += await analyzeAndPersist(repo.path, items, analyzeOptions)
     } catch (err) {
       errors.push(`${repo.path}: ${(err as Error).message}`)
     }

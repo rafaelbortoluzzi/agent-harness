@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
       limit: typeof body.limit === 'number' ? body.limit : undefined,
       provider,
       target: normalizeActionTarget(body.target),
+      ...(typeof body.presetId === 'string' ? { presetId: body.presetId } : {}),
+      ...(body.promptOverride ? { promptOverride: body.promptOverride } : {}),
     })
     return NextResponse.json(result)
   } catch (err) {

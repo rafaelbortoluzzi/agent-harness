@@ -187,7 +187,7 @@ export function Explorer() {
   }, [repoList, grouped])
 
   const runAction = async (request: ContextActionRequest) => {
-    const { id, provider, target, path, dialogTarget } = request
+    const { id, provider, target, path, dialogTarget, presetId, promptOverride } = request
     if (id === 'copy-path' && path) await navigator.clipboard?.writeText(path)
     if (id === 'preview' && dialogTarget.kind === 'unit') {
       window.open(`/preview?id=${encodeURIComponent(dialogTarget.item.id)}`, '_blank', 'noopener,noreferrer')
@@ -196,7 +196,7 @@ export function Explorer() {
       await fetch('/api/judge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, target }),
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
       })
       await items.mutate()
     }
@@ -204,7 +204,7 @@ export function Explorer() {
       await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, target }),
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
       })
     }
     if (id === 'improve' && dialogTarget.kind === 'unit') {
@@ -218,7 +218,7 @@ export function Explorer() {
       window.setTimeout(() => {
         window.dispatchEvent(
           new CustomEvent('ah:open-improve', {
-            detail: { itemId: dialogTarget.item.id, provider },
+            detail: { itemId: dialogTarget.item.id, provider, promptOverride },
           }),
         )
       }, 0)

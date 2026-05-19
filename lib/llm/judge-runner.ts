@@ -1,5 +1,5 @@
 import { getItemById, getUnjudgedItems, setVerdict } from '@/lib/registry/queries'
-import { judgeItem } from './judge'
+import { judgeItem, type PromptOverride } from './judge'
 import type { Runtime } from '@/lib/scanner/adapters/base'
 import type { LlmProviderName } from './provider'
 import {
@@ -13,6 +13,8 @@ export interface JudgeOptions {
   concurrency?: number
   provider?: LlmProviderName
   target?: ActionTarget
+  presetId?: string
+  promptOverride?: PromptOverride
   onProgress?: (n: number, total: number, name: string) => void
 }
 
@@ -37,7 +39,10 @@ export async function judgeUnjudged(options: JudgeOptions = {}): Promise<{ judge
     while (index < items.length) {
       const item = items[index++]
       try {
-        const verdict = await judgeItem(item, options.provider)
+        const verdict = await judgeItem(item, options.provider, {
+          presetId: options.presetId,
+          promptOverride: options.promptOverride,
+        })
         setVerdict(item.id, verdict.score, verdict.rationale)
         judged++
       } catch (err) {

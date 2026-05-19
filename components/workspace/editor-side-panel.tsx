@@ -15,6 +15,11 @@ interface Config {
   llmEditorConnected: boolean
 }
 
+interface PromptOverride {
+  system: string
+  prompt: string
+}
+
 export function EditorSidePanel({ item }: { item: PanelItem }) {
   const { data: config } = useSWR<Config>('/api/config', fetcher)
   const { data: snooze, mutate: mutateSnooze } = useSWR<SnoozeState>(
@@ -25,6 +30,8 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
   const [snoozing, setSnoozing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [prompt, setPrompt] = useState('')
+  const [provider, setProvider] = useState<string | undefined>()
+  const [promptOverride, setPromptOverride] = useState<PromptOverride | undefined>()
   const [streamed, setStreamed] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -36,12 +43,19 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
 
   useEffect(() => {
     const onImprove = (e: Event) => {
-      const detail = (e as CustomEvent<{ itemId: string }>).detail
+      const detail = (e as CustomEvent<{
+        itemId: string
+        provider?: string
+        promptOverride?: PromptOverride
+      }>).detail
       if (detail?.itemId !== item.id) return
       setEditing(true)
       setApplied(false)
+      setProvider(detail.provider)
+      setPromptOverride(detail.promptOverride)
       setPrompt(
-        'Improve this agent asset for clarity, concrete triggering conditions, and actionable steps. Preserve the existing format.',
+        detail.promptOverride?.prompt ??
+          'Improve this agent asset for clarity, concrete triggering conditions, and actionable steps. Preserve the existing format.',
       )
     }
     window.addEventListener('ah:open-improve', onImprove)
@@ -79,6 +93,26 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
     setEditError(null)
     setApplied(false)
     try {
+      if (promptOverride && provider) {
+        const resp = await fetch('/api/edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            itemId: item.id,
+            prompt,
+            provider,
+            mode: 'complete',
+            promptOverride: { ...promptOverride, prompt },
+          }),
+        })
+        const body = await resp.json().catch(() => ({}))
+        if (!resp.ok) {
+          setEditError(body.error ?? `HTTP ${resp.status}`)
+          return
+        }
+        setStreamed(body.content ?? '')
+        return
+      }
       const resp = await fetch('/api/edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,8 +235,8 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
       </div>
 
       <div className="ah-side-section">
-        <h4>Edit with Claude</h4>
-        {!config?.llmEditorConnected ? (
+        <h4>Edit with AI</h4>
+        {!config?.llmEditorConnected && !promptOverride ? (
           <div style={{ fontSize: 11, color: 'var(--ah-fg-4)' }}>
             Set <code>ANTHROPIC_API_KEY</code> to enable streaming edits.
           </div>
@@ -270,6 +304,7 @@ export function EditorSidePanel({ item }: { item: PanelItem }) {
                   setEditing(false)
                   setStreamed('')
                   setPrompt('')
+                  setPromptOverride(undefined)
                   setEditError(null)
                 }}
                 disabled={streaming || applying}

@@ -48,6 +48,24 @@ beforeEach(() => {
         }),
       } as Response
     }
+    if (String(input).startsWith('/api/llm/preview')) {
+      return {
+        ok: true,
+        json: async () => ({
+          action: 'judge',
+          presetId: 'personal-fit',
+          presets: [
+            { id: 'skill-quality', label: 'Skill Quality', description: 'General skill quality.' },
+            { id: 'personal-fit', label: 'Personal Fit', description: 'Personal fit.' },
+          ],
+          request: {
+            system: 'system prompt',
+            prompt: 'user prompt',
+            maxTokens: 256,
+          },
+        }),
+      } as Response
+    }
     return { json: async () => ({}) } as Response
   })
 })
@@ -123,4 +141,38 @@ it('shows explorer section actions scoped to repo and type', async () => {
   expect(screen.getByRole('button', { name: /judge/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /analyze/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /remove/i })).toBeInTheDocument()
+})
+
+it('previews and allows editing AI prompts before running', async () => {
+  const onAction = jest.fn()
+
+  render(
+    <ContextActionDialog
+      open
+      target={{
+        kind: 'unit',
+        item,
+      }}
+      onOpenChange={() => {}}
+      onAction={onAction}
+    />,
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: /judge/i }))
+
+  expect(await screen.findByLabelText('System prompt')).toHaveValue('system prompt')
+  expect(screen.getByLabelText('User prompt')).toHaveValue('user prompt')
+
+  fireEvent.change(screen.getByLabelText('System prompt'), { target: { value: 'edited system' } })
+  fireEvent.change(screen.getByLabelText('User prompt'), { target: { value: 'edited user' } })
+  fireEvent.click(screen.getByRole('button', { name: /run judge/i }))
+
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'judge',
+        promptOverride: { system: 'edited system', prompt: 'edited user' },
+      }),
+    ),
+  )
 })

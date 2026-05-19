@@ -5,7 +5,7 @@ import { getLlmProviderName, hasLlmProvider, isLlmProviderName } from '@/lib/llm
 import { getItemById } from '@/lib/registry/queries'
 
 export async function POST(req: NextRequest) {
-  const { itemId, prompt, apply, content, provider, mode } = await req.json()
+  const { itemId, prompt, apply, content, provider, mode, promptOverride } = await req.json()
 
   if (apply) {
     const item = getItemById(itemId)
@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `LLM provider ${selected} is not configured` }, { status: 400 })
     }
     try {
-      return NextResponse.json({ content: await completeEdit(item, prompt as string, selected) })
+      return NextResponse.json({
+        content: await completeEdit(item, prompt as string, selected, { promptOverride }),
+      })
     } catch (err) {
       return NextResponse.json(
         { error: err instanceof Error ? err.message : 'Edit failed' },

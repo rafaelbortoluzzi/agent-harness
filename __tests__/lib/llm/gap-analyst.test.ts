@@ -1,4 +1,19 @@
-import { parseRecommendations } from '@/lib/llm/gap-analyst'
+import { buildAnalyzeRequest, parseRecommendations } from '@/lib/llm/gap-analyst'
+import type { RegistryItem } from '@/lib/scanner/adapters/base'
+
+const item: RegistryItem = {
+  id: 'skill-1',
+  runtime: 'claude',
+  scope: 'repo',
+  type: 'skill',
+  name: 'release-helper',
+  path: '/repo/.claude/skills/release-helper/SKILL.md',
+  repoPath: '/repo',
+  health: 'ok',
+  issues: [],
+  metadata: { description: 'release support' },
+  scannedAt: '2026-05-18T00:00:00.000Z',
+}
 
 describe('parseRecommendations', () => {
   it('parses array', () => {
@@ -35,5 +50,22 @@ describe('parseRecommendations', () => {
   it('returns [] on malformed', () => {
     expect(parseRecommendations('garbage')).toEqual([])
     expect(parseRecommendations('{"not":"array"}')).toEqual([])
+  })
+})
+
+describe('buildAnalyzeRequest', () => {
+  it('exposes the repo inventory prompt used for gap analysis', () => {
+    const request = buildAnalyzeRequest('/repo', [item])
+
+    expect(request.system).toContain('AI agent ecosystem analyst')
+    expect(request.prompt).toContain('Repo: /repo')
+    expect(request.prompt).toContain('[skill] release-helper')
+  })
+
+  it('can use the harness blueprint preset', () => {
+    const request = buildAnalyzeRequest('/repo', [item], { presetId: 'harness-blueprint' })
+
+    expect(request.system).toContain('agent harness blueprint')
+    expect(request.system).toContain('skills, agents, hooks, MCPs')
   })
 })

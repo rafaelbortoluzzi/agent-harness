@@ -103,7 +103,7 @@ export function TabBar({
   }
 
   const runAction = async (request: ContextActionRequest) => {
-    const { id, dialogTarget, path, target, provider } = request
+    const { id, dialogTarget, path, target, provider, presetId, promptOverride } = request
     if (id === 'close' && dialogTarget.kind === 'tab') closeTab(dialogTarget.tab.id)
     if (id === 'copy-path' && path) await navigator.clipboard?.writeText(path)
     if (id === 'preview') {
@@ -123,7 +123,7 @@ export function TabBar({
       await fetch('/api/judge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, target }),
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
       })
       await items.mutate()
     }
@@ -131,7 +131,7 @@ export function TabBar({
       await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, target }),
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
       })
     }
     if (id === 'improve') {
@@ -144,13 +144,13 @@ export function TabBar({
       if (itemId) {
         if (state.sidePanelHidden) toggleSidePanel()
         window.dispatchEvent(
-          new CustomEvent('ah:open-improve', { detail: { itemId, provider } }),
+          new CustomEvent('ah:open-improve', { detail: { itemId, provider, promptOverride } }),
         )
       } else {
         await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider, target }),
+          body: JSON.stringify({ provider, target, presetId, promptOverride }),
         })
       }
     }

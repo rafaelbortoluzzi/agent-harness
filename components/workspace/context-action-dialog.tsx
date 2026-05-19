@@ -36,6 +36,8 @@ export type ContextActionId =
 export interface ContextActionRequest {
   id: ContextActionId
   provider?: string
+  presetId?: string
+  promptOverride?: { system: string; prompt: string }
   path?: string
   target: ActionTarget
   dialogTarget: DialogTarget
@@ -58,6 +60,13 @@ interface ActionDef {
   label: string
   shortcut: string
   icon: typeof Sparkles
+}
+
+interface PromptPreview {
+  action: ContextActionId
+  presetId?: string
+  presets?: { id: string; label: string; description: string }[]
+  request: { system: string; prompt: string; maxTokens?: number }
 }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
@@ -157,6 +166,10 @@ function shortcutMatches(e: KeyboardEvent, action: ContextActionId): boolean {
   return e.key === 'Backspace' || e.key === 'Delete'
 }
 
+function isAiAction(action: ContextActionId): action is 'judge' | 'analyze' | 'improve' {
+  return action === 'judge' || action === 'analyze' || action === 'improve'
+}
+
 export function ContextActionDialog({
   open,
   target,
@@ -172,13 +185,90 @@ export function ContextActionDialog({
   const defaultProvider = config?.llmProvider ?? config?.llmProviders?.find(p => p.selected)?.id ?? ''
   const [provider, setProvider] = useState(defaultProvider)
   const selectedProvider = provider || defaultProvider
+  const [previewAction, setPreviewAction] = useState<ContextActionId | null>(null)
+  const [preview, setPreview] = useState<PromptPreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [systemPrompt, setSystemPrompt] = useState('')
+  const [userPrompt, setUserPrompt] = useState('')
+  const [presetId, setPresetId] = useState('')
 
   const info = useMemo(() => (target ? describeTarget(target) : null), [target])
   const actions = useMemo(() => (target && info ? actionsFor(target, info.path) : []), [target, info])
 
+  const resetPreview = () => {
+    setPreviewAction(null)
+    setPreview(null)
+    setPreviewError(null)
+    setSystemPrompt('')
+    setUserPrompt('')
+    setPresetId('')
+  }
+
+  const close = () => {
+    resetPreview()
+    onOpenChange(false)
+  }
+
+  const loadPreview = async (id: ContextActionId, nextPresetId = presetId) => {
+    if (!target || !info) return
+    if (!isAiAction(id)) return
+    setPreviewAction(id)
+    setPreviewLoading(true)
+    setPreviewError(null)
+    try {
+      const resp = await fetch('/api/llm/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: id,
+          target: info.actionTarget,
+          presetId: nextPresetId || undefined,
+        }),
+      })
+      const body = await resp.json().catch(() => ({}))
+      if (!resp.ok) {
+        setPreviewError(body.error ?? `Preview failed: HTTP ${resp.status}`)
+        return
+      }
+      const loaded = body as PromptPreview
+      setPreview(loaded)
+      setPresetId(loaded.presetId ?? nextPresetId ?? '')
+      setSystemPrompt(loaded.request.system)
+      setUserPrompt(loaded.request.prompt)
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Preview failed')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   const run = (id: ContextActionId) => {
     if (!target || !info) return
-    onAction({ id, provider: selectedProvider, path: info.path, target: info.actionTarget, dialogTarget: target })
+    if (isAiAction(id)) {
+      void loadPreview(id)
+      return
+    }
+    onAction({
+      id,
+      provider: selectedProvider,
+      path: info.path,
+      target: info.actionTarget,
+      dialogTarget: target,
+    })
+  }
+
+  const runPreview = () => {
+    if (!target || !info || !previewAction) return
+    onAction({
+      id: previewAction,
+      provider: selectedProvider,
+      presetId: presetId || undefined,
+      promptOverride: { system: systemPrompt, prompt: userPrompt },
+      path: info.path,
+      target: info.actionTarget,
+      dialogTarget: target,
+    })
   }
 
   useEffect(() => {
@@ -190,7 +280,7 @@ export function ContextActionDialog({
         run(action.id)
         return
       }
-      if (e.key === 'Escape') onOpenChange(false)
+      if (e.key === 'Escape') close()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -201,7 +291,7 @@ export function ContextActionDialog({
   if (!open || !target || !info) return null
 
   return (
-    <div className="ah-dialog-overlay" onClick={e => e.target === e.currentTarget && onOpenChange(false)}>
+    <div className="ah-dialog-overlay" onClick={e => e.target === e.currentTarget && close()}>
       <div className="ah-action-dialog" role="dialog" aria-label={`${target.kind} actions`}>
         <div className="ah-action-head">
           <div>
@@ -212,7 +302,7 @@ export function ContextActionDialog({
               {info.path && <span>{info.path}</span>}
             </div>
           </div>
-          <button type="button" onClick={() => onOpenChange(false)} aria-label="Dismiss actions">
+          <button type="button" onClick={close} aria-label="Dismiss actions">
             <X size={13} />
           </button>
         </div>
@@ -233,18 +323,80 @@ export function ContextActionDialog({
           </select>
         </label>
 
-        <div className="ah-action-list">
-          {actions.map(action => {
-            const Icon = action.icon
-            return (
-              <button key={action.id} type="button" onClick={() => run(action.id)}>
-                <Icon size={13} strokeWidth={1.6} />
-                <span>{action.label}</span>
-                <kbd>{action.shortcut}</kbd>
+        {previewAction ? (
+          <div className="ah-prompt-preview">
+            <div className="ah-prompt-preview-head">
+              <button type="button" onClick={() => setPreviewAction(null)}>
+                Back
               </button>
-            )
-          })}
-        </div>
+              <span>{previewAction}</span>
+              <button
+                type="button"
+                onClick={() => runPreview()}
+                disabled={previewLoading || !systemPrompt.trim() || !userPrompt.trim()}
+              >
+                Run {previewAction}
+              </button>
+            </div>
+            {preview?.presets?.length ? (
+              <label className="ah-provider-pick">
+                <span>Preset</span>
+                <select
+                  aria-label="Prompt preset"
+                  value={presetId}
+                  onChange={e => {
+                    const next = e.target.value
+                    setPresetId(next)
+                    void loadPreview(previewAction, next)
+                  }}
+                >
+                  {preview.presets.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {previewLoading && <div className="ah-prompt-note">Loading prompt…</div>}
+            {previewError && <div className="ah-prompt-error">{previewError}</div>}
+            {preview && (
+              <>
+                <label className="ah-prompt-field">
+                  <span>System prompt</span>
+                  <textarea
+                    aria-label="System prompt"
+                    value={systemPrompt}
+                    onChange={e => setSystemPrompt(e.target.value)}
+                    rows={7}
+                  />
+                </label>
+                <label className="ah-prompt-field">
+                  <span>User prompt</span>
+                  <textarea
+                    aria-label="User prompt"
+                    value={userPrompt}
+                    onChange={e => setUserPrompt(e.target.value)}
+                    rows={9}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="ah-action-list">
+            {actions.map(action => {
+              const Icon = action.icon
+              return (
+                <button key={action.id} type="button" onClick={() => run(action.id)}>
+                  <Icon size={13} strokeWidth={1.6} />
+                  <span>{action.label}</span>
+                  <kbd>{action.shortcut}</kbd>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

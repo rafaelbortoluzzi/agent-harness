@@ -1,6 +1,10 @@
 import fs from 'fs'
 import { getClient, MODEL } from './client'
-import { completeLlmTextWithProvider, type LlmProviderName } from './provider'
+import {
+  completeLlmTextWithProvider,
+  type CompleteLlmTextOptions,
+  type LlmProviderName,
+} from './provider'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
 const SYSTEM = `You are editing an AI agent asset (skill, agent, rule, command, or instruction).
@@ -11,10 +15,50 @@ Rules:
 - Keep the same file format (Markdown body, frontmatter shape)
 - If user request is destructive or unclear, return the file unchanged and only output a comment as the body's first line: "<!-- declined: reason -->" followed by the original content`
 
+export interface PromptOverride {
+  system: string
+  prompt: string
+}
+
+export interface EditRequestOptions {
+  promptOverride?: PromptOverride
+}
+
 export interface EditStreamChunk {
   type: 'text' | 'done' | 'error'
   text?: string
   error?: string
+}
+
+function buildEditUserPrompt(item: RegistryItem, body: string, userPrompt: string): string {
+  return `Asset: ${item.runtime}/${item.type}/${item.name}
+Path: ${item.path}
+
+--- CURRENT BODY ---
+${body}
+--- END BODY ---
+
+User request: ${userPrompt}`
+}
+
+export function buildEditRequest(
+  item: RegistryItem,
+  body: string,
+  userPrompt: string,
+  options: EditRequestOptions = {},
+): CompleteLlmTextOptions {
+  if (options.promptOverride?.system && options.promptOverride.prompt) {
+    return {
+      system: options.promptOverride.system,
+      prompt: options.promptOverride.prompt,
+      maxTokens: 8192,
+    }
+  }
+  return {
+    system: SYSTEM,
+    prompt: buildEditUserPrompt(item, body, userPrompt),
+    maxTokens: 8192,
+  }
 }
 
 export async function* streamEdit(
@@ -61,23 +105,13 @@ export async function completeEdit(
   item: RegistryItem,
   userPrompt: string,
   provider: LlmProviderName,
+  options: EditRequestOptions = {},
 ): Promise<string> {
   if (!fs.existsSync(item.path)) throw new Error(`Path not found: ${item.path}`)
   const stat = fs.statSync(item.path)
   if (stat.isDirectory()) throw new Error('Cannot edit a directory')
   const body = fs.readFileSync(item.path, 'utf8')
-  return completeLlmTextWithProvider(provider, {
-    system: SYSTEM,
-    prompt: `Asset: ${item.runtime}/${item.type}/${item.name}
-Path: ${item.path}
-
---- CURRENT BODY ---
-${body}
---- END BODY ---
-
-User request: ${userPrompt}`,
-    maxTokens: 8192,
-  })
+  return completeLlmTextWithProvider(provider, buildEditRequest(item, body, userPrompt, options))
 }
 
 export function applyEdit(item: RegistryItem, newContent: string): void {
