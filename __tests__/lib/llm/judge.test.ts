@@ -1,4 +1,4 @@
-import { buildJudgeRequest, parseVerdict } from '@/lib/llm/judge'
+import { buildJudgeRequest, JUDGE_PRESETS, parseVerdict } from '@/lib/llm/judge'
 import type { RegistryItem } from '@/lib/scanner/adapters/base'
 
 const item: RegistryItem = {
@@ -60,6 +60,41 @@ describe('buildJudgeRequest', () => {
 
     expect(request.system).toContain('personal workflow')
     expect(request.system).toContain('time or token savings')
+  })
+
+  it('includes the built-in judge intelligence pack presets', () => {
+    expect(JUDGE_PRESETS.map(p => p.id)).toEqual([
+      'skill-quality',
+      'personal-fit',
+      'openai-skill-creator',
+      'superpowers-writing-skills',
+      'superpowers-brainstorming',
+      'grill-with-docs',
+      'llm-as-judge',
+    ])
+  })
+
+  it('can switch to skill-authoring intelligence presets', () => {
+    expect(buildJudgeRequest(item, 'body text', { presetId: 'openai-skill-creator' }).system).toContain(
+      'progressive disclosure',
+    )
+    expect(
+      buildJudgeRequest(item, 'body text', { presetId: 'superpowers-writing-skills' }).system,
+    ).toContain('failing pressure scenario')
+    expect(
+      buildJudgeRequest(item, 'body text', { presetId: 'superpowers-brainstorming' }).system,
+    ).toContain('design gate')
+    expect(buildJudgeRequest(item, 'body text', { presetId: 'grill-with-docs' }).system).toContain(
+      'glossary',
+    )
+  })
+
+  it('can switch to an LLM-as-judge preset for Codex assets', () => {
+    const request = buildJudgeRequest(item, 'body text', { presetId: 'llm-as-judge' })
+
+    expect(request.system).toContain('low-precision')
+    expect(request.system).toContain('hard gates')
+    expect(request.system).toContain('JSON object')
   })
 
   it('adds personal harness preferences to the user prompt', () => {

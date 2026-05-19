@@ -897,22 +897,28 @@
   color: var(--ah-fg-3);
   font-size: 11px;
 }
-.ah-prompt-field textarea {
+.ah-prompt-editor {
   width: 100%;
-  min-height: 120px;
-  resize: vertical;
   background: var(--ah-bg-1);
   border: 1px solid var(--ah-line-2);
+  color: var(--ah-fg-1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ah-prompt-editor:focus-within {
+  border-color: var(--ah-line-4);
+}
+.ah-prompt-editor .cm-editor {
+  height: 100%;
+  min-height: inherit;
+  background: transparent;
   color: var(--ah-fg-1);
   font-family: var(--ah-font);
   font-size: 11px;
   line-height: 1.45;
-  padding: 8px;
-  outline: none;
-  border-radius: 2px;
 }
-.ah-prompt-field textarea:focus {
-  border-color: var(--ah-line-4);
+.ah-prompt-editor .cm-scroller {
+  min-height: inherit;
 }
 .ah-prompt-note,
 .ah-prompt-error {

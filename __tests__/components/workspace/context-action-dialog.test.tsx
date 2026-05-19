@@ -6,6 +6,32 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ContextActionDialog } from '@/components/workspace/context-action-dialog'
 import type { PanelItem } from '@/components/item-side-panel'
 
+jest.mock('@uiw/react-codemirror', () => {
+  return {
+    __esModule: true,
+    default: ({
+      value,
+      onChange,
+      'aria-label': ariaLabel,
+    }: {
+      value: string
+      onChange: (value: string) => void
+      'aria-label': string
+    }) => (
+      <textarea
+        aria-label={ariaLabel}
+        value={value}
+        onChange={event => onChange(event.target.value)}
+      />
+    ),
+    EditorView: { lineWrapping: {} },
+  }
+})
+
+jest.mock('@codemirror/lang-markdown', () => ({
+  markdown: () => ({}),
+}))
+
 const item: PanelItem = {
   id: 'skill-1',
   name: 'gamp-config',
@@ -57,6 +83,11 @@ beforeEach(() => {
           presets: [
             { id: 'skill-quality', label: 'Skill Quality', description: 'General skill quality.' },
             { id: 'personal-fit', label: 'Personal Fit', description: 'Personal fit.' },
+            {
+              id: 'llm-as-judge',
+              label: 'LLM-as-Judge',
+              description: 'Judge rubric quality.',
+            },
           ],
           request: {
             system: 'system prompt',
@@ -162,6 +193,7 @@ it('previews and allows editing AI prompts before running', async () => {
 
   expect(await screen.findByLabelText('System prompt')).toHaveValue('system prompt')
   expect(screen.getByLabelText('User prompt')).toHaveValue('user prompt')
+  expect(screen.getByLabelText('Prompt preset')).toHaveTextContent('LLM-as-Judge')
 
   fireEvent.change(screen.getByLabelText('System prompt'), { target: { value: 'edited system' } })
   fireEvent.change(screen.getByLabelText('User prompt'), { target: { value: 'edited user' } })

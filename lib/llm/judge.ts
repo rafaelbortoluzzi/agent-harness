@@ -38,6 +38,77 @@ Respond with ONLY a JSON object of the form:
 
 No prose, no markdown, no code fences. Just the JSON object.`
 
+const OPENAI_SKILL_CREATOR_SYSTEM = `You are reviewing an AI skill against OpenAI-style Codex skill authoring guidance.
+
+Score the asset 0-10 on these criteria, equally weighted:
+- Trigger metadata: does the name and description clearly tell Codex when to use the skill?
+- progressive disclosure: is SKILL.md concise, with heavy references, scripts, and assets split into bundled resources only when useful?
+- Degrees of freedom: does it choose instructions, pseudocode, or scripts at the right level of specificity for the task risk?
+- Validation integrity: does the skill avoid leaking intended answers into validation and include realistic usage checks where appropriate?
+
+Respond with ONLY a JSON object of the form:
+{"score": <0-10 integer>, "rationale": "<one short sentence>"}
+
+No prose, no markdown, no code fences. Just the JSON object.`
+
+const SUPERPOWERS_WRITING_SKILLS_SYSTEM = `You are reviewing a skill through the Superpowers writing-skills discipline: skill authoring is test-driven development for process documentation.
+
+Score the asset 0-10 on these criteria, equally weighted:
+- RED phase: does the skill require or preserve a failing pressure scenario before writing or changing guidance?
+- GREEN phase: does the skill address the actual observed rationalizations with minimal, concrete instructions?
+- REFACTOR phase: does it close loopholes, include red flags, and retest until agents comply?
+- Discovery quality: does the description use concrete "Use when..." triggers without summarizing the workflow?
+
+Respond with ONLY a JSON object of the form:
+{"score": <0-10 integer>, "rationale": "<one short sentence>"}
+
+No prose, no markdown, no code fences. Just the JSON object.`
+
+const SUPERPOWERS_BRAINSTORMING_SYSTEM = `You are reviewing whether an AI-agent asset preserves design-before-implementation discipline.
+
+Score the asset 0-10 on these criteria, equally weighted:
+- design gate: does it prevent implementation before the user approves a concrete design?
+- Question quality: does it drive one-question-at-a-time clarification instead of broad, vague interrogation?
+- Alternatives: does it force 2-3 approaches with trade-offs before choosing an implementation path?
+- Scope control: does it decompose oversized work and keep implementation units isolated and testable?
+
+Respond with ONLY a JSON object of the form:
+{"score": <0-10 integer>, "rationale": "<one short sentence>"}
+
+No prose, no markdown, no code fences. Just the JSON object.`
+
+const GRILL_WITH_DOCS_SYSTEM = `You are reviewing whether an AI-agent asset supports rigorous domain-language discovery with documentation.
+
+Score the asset 0-10 on these criteria, equally weighted:
+- glossary discipline: does it resolve fuzzy or conflicting domain terms into precise language?
+- Code cross-checks: does it verify user claims against the code before accepting them?
+- Documentation hygiene: does it capture only resolved domain terminology in CONTEXT.md, not implementation notes?
+- ADR restraint: does it reserve ADRs for hard-to-reverse, surprising, trade-off decisions?
+
+Respond with ONLY a JSON object of the form:
+{"score": <0-10 integer>, "rationale": "<one short sentence>"}
+
+No prose, no markdown, no code fences. Just the JSON object.`
+
+const LLM_AS_JUDGE_SYSTEM = `You are evaluating whether a Codex or coding-agent asset is itself a good LLM-as-a-judge rubric.
+
+Score the asset 0-10 using broad, low-precision judgment bands mapped to the final integer:
+- 0-2: unusable or missing a concrete evaluation target.
+- 3-5: has criteria, but they are vague, overlapping, or hard to apply consistently.
+- 6-8: has clear criteria, required inputs, and useful rationale requirements.
+- 9-10: adds hard gates, calibration guidance, and output constraints that make repeated judgments stable.
+
+Judge these criteria:
+- Rubric clarity: are criteria atomic, observable, and non-overlapping?
+- Input discipline: does it state what context, references, examples, or asset body the judge must inspect?
+- Reliability controls: does it use hard gates for deterministic failures and avoid fragile fine-grained scoring?
+- Output contract: does it require a parseable JSON object with a short rationale suitable for run history?
+
+Respond with ONLY a JSON object of the form:
+{"score": <0-10 integer>, "rationale": "<one short sentence>"}
+
+No prose, no markdown, no code fences. Just the JSON object.`
+
 export const JUDGE_PRESETS = [
   {
     id: 'skill-quality',
@@ -48,6 +119,31 @@ export const JUDGE_PRESETS = [
     id: 'personal-fit',
     label: 'Personal Fit',
     description: 'Usefulness for your personal workflow, repo harness, and token/time savings.',
+  },
+  {
+    id: 'openai-skill-creator',
+    label: 'OpenAI Skill Creator',
+    description: 'OpenAI Codex skill structure, metadata, progressive disclosure, and validation fit.',
+  },
+  {
+    id: 'superpowers-writing-skills',
+    label: 'Writing Skills TDD',
+    description: 'Superpowers skill-writing discipline: RED/GREEN/REFACTOR, loopholes, and discovery.',
+  },
+  {
+    id: 'superpowers-brainstorming',
+    label: 'Brainstorming Discipline',
+    description: 'Design approval, one-question clarification, alternatives, and scope control.',
+  },
+  {
+    id: 'grill-with-docs',
+    label: 'Grill With Docs',
+    description: 'Domain glossary precision, code cross-checks, CONTEXT.md hygiene, and ADR restraint.',
+  },
+  {
+    id: 'llm-as-judge',
+    label: 'LLM-as-Judge',
+    description: 'Rubric quality for Codex judges: criteria, hard gates, calibration, and JSON output.',
   },
 ] as const
 
@@ -65,7 +161,22 @@ export interface JudgeRequestOptions {
 }
 
 function judgeSystemForPreset(presetId?: string): string {
-  return presetId === 'personal-fit' ? PERSONAL_FIT_SYSTEM : SKILL_QUALITY_SYSTEM
+  switch (presetId) {
+    case 'personal-fit':
+      return PERSONAL_FIT_SYSTEM
+    case 'openai-skill-creator':
+      return OPENAI_SKILL_CREATOR_SYSTEM
+    case 'superpowers-writing-skills':
+      return SUPERPOWERS_WRITING_SKILLS_SYSTEM
+    case 'superpowers-brainstorming':
+      return SUPERPOWERS_BRAINSTORMING_SYSTEM
+    case 'grill-with-docs':
+      return GRILL_WITH_DOCS_SYSTEM
+    case 'llm-as-judge':
+      return LLM_AS_JUDGE_SYSTEM
+    default:
+      return SKILL_QUALITY_SYSTEM
+  }
 }
 
 export function buildJudgeUserPrompt(item: RegistryItem, body: string): string {

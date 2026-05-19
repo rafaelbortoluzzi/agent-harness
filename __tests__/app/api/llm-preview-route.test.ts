@@ -58,6 +58,7 @@ describe('/api/llm/preview', () => {
     expect(body.request.system).toContain('personal workflow')
     expect(body.request.prompt).toContain('release-helper')
     expect(body.request.prompt).toContain('Prefer repo-local skills')
+    expect(body.presets.map((preset: { id: string }) => preset.id)).toContain('llm-as-judge')
   })
 
   it('returns the prompt for repo analysis', async () => {

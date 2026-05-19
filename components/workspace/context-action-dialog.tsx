@@ -15,6 +15,7 @@ import {
 import type { PanelItem } from '@/components/item-side-panel'
 import type { Tab } from '@/lib/workspace/store'
 import type { ActionTarget } from '@/lib/workspace/action-targets'
+import { PromptCodeEditor } from './prompt-code-editor'
 
 type DialogTarget =
   | { kind: 'tab'; tab: Tab; item?: PanelItem | null }
@@ -362,24 +363,18 @@ export function ContextActionDialog({
             {previewError && <div className="ah-prompt-error">{previewError}</div>}
             {preview && (
               <>
-                <label className="ah-prompt-field">
-                  <span>System prompt</span>
-                  <textarea
-                    aria-label="System prompt"
-                    value={systemPrompt}
-                    onChange={e => setSystemPrompt(e.target.value)}
-                    rows={7}
-                  />
-                </label>
-                <label className="ah-prompt-field">
-                  <span>User prompt</span>
-                  <textarea
-                    aria-label="User prompt"
-                    value={userPrompt}
-                    onChange={e => setUserPrompt(e.target.value)}
-                    rows={9}
-                  />
-                </label>
+                <PromptCodeEditor
+                  label="System prompt"
+                  value={systemPrompt}
+                  onChange={setSystemPrompt}
+                  minHeight={150}
+                />
+                <PromptCodeEditor
+                  label="User prompt"
+                  value={userPrompt}
+                  onChange={setUserPrompt}
+                  minHeight={230}
+                />
               </>
             )}
           </div>
