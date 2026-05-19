@@ -25,7 +25,7 @@ import {
 import { RetroTree } from './retro-tree'
 import { RetroMenuBar, type MenuDef } from './retro-menubar'
 import { RetroEditor } from './retro-editor'
-import { RetroIcon, iconForType } from './retro-icons'
+import { RetroIcon, iconForType, type RetroIconName } from './retro-icons'
 import {
   RetroAboutModal,
   RetroHelpModal,
@@ -52,6 +52,20 @@ import {
 import { RetroTweaksModal } from './retro-tweaks-modal'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import type { PanelItem } from '@/components/item-side-panel'
+import { WelcomeView } from '@/components/views/welcome-view'
+import { RecommendationsView } from '@/components/views/recommendations-view'
+import { SettingsView } from '@/components/views/settings-view'
+import { MarkdownPreview } from './markdown-preview'
+import { BottomPanel } from './bottom-panel'
+import { EditorSidePanel } from './editor-side-panel'
+import { ContextActionDialog, type ContextActionRequest } from './context-action-dialog'
+import type { Tab } from '@/lib/workspace/store'
+
+type RetroDialogTarget =
+  | { kind: 'tab'; tab: Tab; item?: PanelItem | null }
+  | { kind: 'repo'; repoPath: string; label?: string | null }
+  | { kind: 'section'; repoPath: string; itemType: string; label: string }
+  | { kind: 'unit'; item: PanelItem }
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
 
@@ -161,6 +175,9 @@ export function RetroShell() {
   const [treeWidth, setTreeWidth] = useState(240)
   const [tweaks, setTweaks] = useState<RetroTweaks>(defaultTweaks)
   const [tweaksOpen, setTweaksOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [showFiles, setShowFiles] = useState(false)
+  const [actionTarget, setActionTarget] = useState<RetroDialogTarget | null>(null)
 
   useEffect(() => {
     setTweaks(loadTweaks())
@@ -233,16 +250,19 @@ export function RetroShell() {
   const crumbs = breadcrumbFromNav(navState.nav, repoLabel)
 
   const rows: DetailsRow[] = useMemo(() => {
-    if (navState.nav.kind === 'root') return items.map(toDetailsRow)
-    if (navState.nav.kind === 'repo') {
+    let scoped: PanelItem[]
+    if (navState.nav.kind === 'root') scoped = items
+    else if (navState.nav.kind === 'repo') {
       const repoPath = navState.nav.repoPath
-      return items.filter(i => i.repoPath === repoPath).map(toDetailsRow)
+      scoped = items.filter(i => i.repoPath === repoPath)
+    } else {
+      const { repoPath, itemType } = navState.nav
+      scoped = items.filter(i => i.repoPath === repoPath && i.type === itemType)
     }
-    const { repoPath, itemType } = navState.nav
-    return items
-      .filter(i => i.repoPath === repoPath && i.type === itemType)
-      .map(toDetailsRow)
-  }, [items, navState.nav])
+    const q = search.trim().toLowerCase()
+    if (q) scoped = scoped.filter(i => i.name.toLowerCase().includes(q))
+    return scoped.map(toDetailsRow)
+  }, [items, navState.nav, search])
 
   const sortedRows = useMemo(() => sortDetailsRows(rows, sort), [rows, sort])
 
@@ -267,6 +287,43 @@ export function RetroShell() {
   const broken = items.filter(i => i.health === 'broken').length
   const warnings = items.filter(i => i.health === 'warning').length
   const totalSize = rows.reduce((a, r) => a + r.size, 0)
+
+  const runAction = async (request: ContextActionRequest) => {
+    const { id, provider, target, path, dialogTarget, presetId, promptOverride } = request
+    if (id === 'copy-path' && path) await navigator.clipboard?.writeText(path)
+    if (id === 'preview' && dialogTarget.kind === 'unit') {
+      window.open(
+        `/preview?id=${encodeURIComponent(dialogTarget.item.id)}`,
+        '_blank',
+        'noopener,noreferrer',
+      )
+    }
+    if (id === 'judge') {
+      await fetch('/api/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
+      })
+      await itemsReq.mutate()
+    }
+    if (id === 'analyze') {
+      await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, target, presetId, promptOverride }),
+      })
+    }
+    if (id === 'remove') {
+      await fetch('/api/registry', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target }),
+      })
+      await reposReq.mutate()
+      await itemsReq.mutate()
+    }
+    setActionTarget(null)
+  }
 
   return (
     <div className="rs-shell">
@@ -408,7 +465,59 @@ export function RetroShell() {
       </div>
 
       <div className="rs-body">
-        <div className="rs-tree" style={{ width: treeWidth }}>
+        <div className="rs-tree" style={{ width: treeWidth, display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              padding: '4px 4px 2px',
+              borderBottom: '1px solid var(--rs-chrome-lo)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: 'var(--rs-chrome)',
+              position: 'sticky',
+              top: 0,
+              zIndex: 1,
+            }}
+          >
+            <RetroIcon name="search" size={12} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Find skill, agent…"
+              spellCheck={false}
+              style={{
+                flex: 1,
+                fontSize: 11,
+                padding: '2px 4px',
+                background: '#fff',
+                border: '2px solid',
+                borderColor:
+                  'var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow)',
+                fontFamily: 'inherit',
+                outline: 'none',
+                minWidth: 0,
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                title="Clear"
+                style={{
+                  width: 16,
+                  height: 16,
+                  background: 'var(--rs-chrome)',
+                  border: '1px solid var(--rs-chrome-shadow)',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <div style={{ flex: 1, overflow: 'auto' }}>
           {reposReq.isLoading ? (
             <div style={{ padding: 6, color: '#6b675d' }}>Loading…</div>
           ) : (
@@ -424,8 +533,25 @@ export function RetroShell() {
               }
               onSelect={onTreeSelect}
               onToggle={id => dispatch({ type: 'toggle-expanded', id })}
+              onContextMenu={node => {
+                if (node.kind === 'repo' && node.repoPath) {
+                  setActionTarget({
+                    kind: 'repo',
+                    repoPath: node.repoPath,
+                    label: node.label,
+                  })
+                } else if (node.kind === 'type-group' && node.repoPath && node.itemType) {
+                  setActionTarget({
+                    kind: 'section',
+                    repoPath: node.repoPath,
+                    itemType: node.itemType,
+                    label: node.label,
+                  })
+                }
+              }}
             />
           )}
+          </div>
         </div>
         <div
           className="rs-splitter"
@@ -438,136 +564,207 @@ export function RetroShell() {
           <RetroContentTabs
             tabs={state.tabs}
             current={state.current}
-            onActivate={setCurrent}
-            onClose={closeTab}
-          />
-          <div
-            style={{
-              flex: 1,
-              background: state.current && state.current !== 'welcome' && state.tabs.find(t => t.id === state.current)?.kind === 'editor' ? '#000' : '#fff',
-              margin: 2,
-              border: '2px solid',
-              borderColor: 'var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow)',
-              overflow: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 0,
+            showFiles={showFiles}
+            onActivate={id => {
+              setShowFiles(false)
+              setCurrent(id)
             }}
-          >
+            onClose={closeTab}
+            onFiles={() => setShowFiles(true)}
+          />
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <div
+              style={{
+                flex: 1,
+                background:
+                  !showFiles &&
+                  state.tabs.find(t => t.id === state.current)?.kind === 'editor'
+                    ? '#000'
+                    : '#fff',
+                margin: 2,
+                border: '2px solid',
+                borderColor:
+                  'var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow)',
+                overflow: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                minWidth: 0,
+              }}
+            >
+              {(() => {
+                if (showFiles) {
+                  return (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--rs-chrome)' }}>
+                          {(
+                            [
+                              ['name', 'Name'],
+                              ['type', 'Type'],
+                              ['size', 'Size'],
+                              ['runtime', 'Runtime'],
+                              ['score', 'Score'],
+                              ['modified', 'Modified'],
+                            ] as [SortKey, string][]
+                          ).map(([key, label]) => (
+                            <th
+                              key={key}
+                              onClick={() => onSortClick(key)}
+                              style={{
+                                textAlign: 'left',
+                                padding: '2px 6px',
+                                borderRight: '1px solid #8e887b',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                              }}
+                            >
+                              {label}
+                              {sort.key === key && (
+                                <span style={{ color: '#6b675d', marginLeft: 4 }}>
+                                  {sort.dir === 'asc' ? '▲' : '▼'}
+                                </span>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedRows.map(row => {
+                          const isBroken = row.health === 'broken'
+                          const isWarn = row.health === 'warning'
+                          const src = items.find(i => i.id === row.id)
+                          return (
+                            <tr
+                              key={row.id}
+                              onDoubleClick={() => {
+                                if (src) {
+                                  setShowFiles(false)
+                                  openEditor({
+                                    id: src.id,
+                                    name: src.name,
+                                    type: src.type,
+                                    path: src.path,
+                                  })
+                                }
+                              }}
+                              onClick={() => dispatch({ type: 'select-item', itemId: row.id })}
+                              onContextMenu={e => {
+                                if (!src) return
+                                e.preventDefault()
+                                dispatch({ type: 'select-item', itemId: row.id })
+                                setActionTarget({ kind: 'unit', item: src })
+                              }}
+                              style={{
+                                background:
+                                  navState.selectedItemId === row.id ? '#1c3a6e' : undefined,
+                                color:
+                                  navState.selectedItemId === row.id ? '#fff' : undefined,
+                                cursor: 'default',
+                              }}
+                            >
+                              <td
+                                style={{
+                                  padding: '1px 6px',
+                                  color:
+                                    navState.selectedItemId === row.id
+                                      ? '#fff'
+                                      : isBroken
+                                        ? '#b22222'
+                                        : isWarn
+                                          ? '#8a6500'
+                                          : undefined,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <RetroIcon name={iconForType(row.type)} size={16} />
+                                {row.name}
+                              </td>
+                              <td style={{ padding: '1px 6px' }}>{row.type}</td>
+                              <td
+                                style={{
+                                  padding: '1px 6px',
+                                  fontFamily: 'IBM Plex Mono, monospace',
+                                }}
+                              >
+                                {formatKb(row.size)}
+                              </td>
+                              <td style={{ padding: '1px 6px' }}>{row.runtime}</td>
+                              <td style={{ padding: '1px 6px', color: scoreColor(row.score) }}>
+                                {row.score === null ? '—' : row.score.toFixed(1)}
+                              </td>
+                              <td style={{ padding: '1px 6px' }}>
+                                {relativeTime(row.modifiedAt)}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        {sortedRows.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: 12, color: '#6b675d' }}>
+                              No items.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )
+                }
+                const activeTab = state.tabs.find(t => t.id === state.current)
+                if (!activeTab) {
+                  return (
+                    <div style={{ padding: 14, color: '#6b675d', fontSize: 11 }}>
+                      No tab open. Use the explorer or click Files.
+                    </div>
+                  )
+                }
+                if (activeTab.kind === 'welcome') {
+                  return (
+                    <div style={{ overflow: 'auto', flex: 1 }}>
+                      <WelcomeView />
+                    </div>
+                  )
+                }
+                if (activeTab.kind === 'recs') {
+                  return (
+                    <div style={{ overflow: 'auto', flex: 1 }}>
+                      <RecommendationsView />
+                    </div>
+                  )
+                }
+                if (activeTab.kind === 'settings') {
+                  return (
+                    <div style={{ overflow: 'auto', flex: 1 }}>
+                      <SettingsView />
+                    </div>
+                  )
+                }
+                if (activeTab.kind === 'preview') {
+                  return <MarkdownPreview tab={activeTab} />
+                }
+                if (activeTab.kind === 'editor') {
+                  return (
+                    <RetroEditorTab
+                      tabId={activeTab.id}
+                      runtime="claude"
+                      scanlines={tweaks.scanlines}
+                    />
+                  )
+                }
+                return null
+              })()}
+            </div>
             {(() => {
               const activeTab = state.tabs.find(t => t.id === state.current)
-              if (activeTab && activeTab.kind === 'editor') {
-                return (
-                  <RetroEditorTab
-                    tabId={activeTab.id}
-                    runtime="claude"
-                    scanlines={tweaks.scanlines}
-                  />
-                )
-              }
-              return (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead>
-                <tr style={{ background: 'var(--rs-chrome)' }}>
-                  {(
-                    [
-                      ['name', 'Name'],
-                      ['type', 'Type'],
-                      ['size', 'Size'],
-                      ['runtime', 'Runtime'],
-                      ['score', 'Score'],
-                      ['modified', 'Modified'],
-                    ] as [SortKey, string][]
-                  ).map(([key, label]) => (
-                    <th
-                      key={key}
-                      onClick={() => onSortClick(key)}
-                      style={{
-                        textAlign: 'left',
-                        padding: '2px 6px',
-                        borderRight: '1px solid #8e887b',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                      }}
-                    >
-                      {label}
-                      {sort.key === key && (
-                        <span style={{ color: '#6b675d', marginLeft: 4 }}>
-                          {sort.dir === 'asc' ? '▲' : '▼'}
-                        </span>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRows.map(row => {
-                  const isBroken = row.health === 'broken'
-                  const isWarn = row.health === 'warning'
-                  return (
-                    <tr
-                      key={row.id}
-                      onDoubleClick={() => {
-                        const src = items.find(i => i.id === row.id)
-                        if (src)
-                          openEditor({
-                            id: src.id,
-                            name: src.name,
-                            type: src.type,
-                            path: src.path,
-                          })
-                      }}
-                      onClick={() => dispatch({ type: 'select-item', itemId: row.id })}
-                      style={{
-                        background:
-                          navState.selectedItemId === row.id ? '#1c3a6e' : undefined,
-                        color: navState.selectedItemId === row.id ? '#fff' : undefined,
-                        cursor: 'default',
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: '1px 6px',
-                          color:
-                            navState.selectedItemId === row.id
-                              ? '#fff'
-                              : isBroken
-                                ? '#b22222'
-                                : isWarn
-                                  ? '#8a6500'
-                                  : undefined,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <RetroIcon name={iconForType(row.type)} size={16} />
-                        {row.name}
-                      </td>
-                      <td style={{ padding: '1px 6px' }}>{row.type}</td>
-                      <td style={{ padding: '1px 6px', fontFamily: 'IBM Plex Mono, monospace' }}>
-                        {formatKb(row.size)}
-                      </td>
-                      <td style={{ padding: '1px 6px' }}>{row.runtime}</td>
-                      <td style={{ padding: '1px 6px', color: scoreColor(row.score) }}>
-                        {row.score === null ? '—' : row.score.toFixed(1)}
-                      </td>
-                      <td style={{ padding: '1px 6px' }}>{relativeTime(row.modifiedAt)}</td>
-                    </tr>
-                  )
-                })}
-                {sortedRows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ padding: 12, color: '#6b675d' }}>
-                      No items.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-              )
+              if (showFiles || !activeTab || activeTab.kind !== 'editor') return null
+              if (state.sidePanelHidden) return null
+              const item = items.find(i => i.id === activeTab.id)
+              if (!item) return null
+              return <EditorSidePanel item={item} />
             })()}
           </div>
+          <BottomPanel />
         </div>
       </div>
 
@@ -623,6 +820,14 @@ export function RetroShell() {
           onClose={() => setTweaksOpen(false)}
         />
       )}
+      <ContextActionDialog
+        open={Boolean(actionTarget)}
+        target={actionTarget}
+        onOpenChange={open => {
+          if (!open) setActionTarget(null)
+        }}
+        onAction={runAction}
+      />
     </div>
   )
 }
@@ -630,13 +835,16 @@ export function RetroShell() {
 interface ContentTabsProps {
   tabs: ReturnType<typeof useWorkspace>['state']['tabs']
   current: string | null
+  showFiles: boolean
   onActivate: (id: string) => void
   onClose: (id: string) => void
+  onFiles: () => void
 }
 
-function RetroContentTabs({ tabs, current, onActivate, onClose }: ContentTabsProps) {
-  const editorTabs = tabs.filter(t => t.kind === 'editor')
-  const filesActive = !current || tabs.find(t => t.id === current)?.kind !== 'editor'
+function RetroContentTabs({ tabs, current, showFiles, onActivate, onClose, onFiles }: ContentTabsProps) {
+  const visibleTabs = tabs.filter(
+    t => t.kind === 'editor' || t.kind === 'welcome' || t.kind === 'recs' || t.kind === 'settings' || t.kind === 'preview',
+  )
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: '4px 9px',
@@ -665,14 +873,24 @@ function RetroContentTabs({ tabs, current, onActivate, onClose }: ContentTabsPro
     >
       <span
         role="tab"
-        aria-selected={filesActive}
-        style={tabStyle(filesActive)}
-        onClick={() => onActivate('welcome')}
+        aria-selected={showFiles}
+        style={tabStyle(showFiles)}
+        onClick={onFiles}
       >
         <RetroIcon name="folder" size={12} /> Files
       </span>
-      {editorTabs.map(t => {
-        const active = t.id === current
+      {visibleTabs.map(t => {
+        const active = !showFiles && t.id === current
+        const iconName: RetroIconName =
+          t.kind === 'welcome'
+            ? 'help'
+            : t.kind === 'recs'
+              ? 'star'
+              : t.kind === 'settings'
+                ? 'cog'
+                : t.kind === 'preview'
+                  ? 'doc'
+                  : 'doc'
         return (
           <span
             key={t.id}
@@ -681,6 +899,7 @@ function RetroContentTabs({ tabs, current, onActivate, onClose }: ContentTabsPro
             style={tabStyle(active)}
             onClick={() => onActivate(t.id)}
           >
+            <RetroIcon name={iconName} size={12} />
             {t.name}
             <button
               type="button"

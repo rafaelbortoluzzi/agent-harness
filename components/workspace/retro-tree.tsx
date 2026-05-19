@@ -1,11 +1,10 @@
 'use client'
 import type { TreeNode } from '@/lib/workspace/retro-tree'
-import { RetroIcon, iconForType, type RetroIconName } from './retro-icons'
+import { RetroIcon, type RetroIconName } from './retro-icons'
 
-function iconForNode(node: TreeNode): RetroIconName {
+function iconForNode(node: TreeNode, isExpanded: boolean): RetroIconName {
   if (node.kind === 'root') return 'computer'
-  if (node.kind === 'repo') return 'repo'
-  return iconForType(node.itemType ?? 'doc')
+  return isExpanded ? 'folder-open' : 'folder'
 }
 
 interface Props {
@@ -14,6 +13,7 @@ interface Props {
   selectedId: string | null
   onSelect: (node: TreeNode) => void
   onToggle: (id: string) => void
+  onContextMenu?: (node: TreeNode, e: React.MouseEvent) => void
 }
 
 function Row({
@@ -22,16 +22,27 @@ function Row({
   selectedId,
   onSelect,
   onToggle,
+  onContextMenu,
 }: Props & { node: TreeNode }) {
   const isExpanded = expanded.includes(node.id)
   const isSelected = selectedId === node.id
   const hasChildren = node.children.length > 0
   const showToggle = hasChildren || node.kind === 'repo'
 
+  const handleRowClick = () => {
+    onSelect(node)
+    if (showToggle) onToggle(node.id)
+  }
+
   return (
     <li role="treeitem" aria-selected={isSelected} aria-expanded={hasChildren ? isExpanded : undefined}>
       <div
         className={`rs-tree-row${isSelected ? ' selected' : ''}`}
+        onContextMenu={e => {
+          if (!onContextMenu) return
+          e.preventDefault()
+          onContextMenu(node, e)
+        }}
         style={{
           paddingLeft: 6 + node.depth * 14,
           paddingTop: 1,
@@ -69,9 +80,9 @@ function Row({
         ) : (
           <span style={{ width: 12, height: 12 }} />
         )}
-        <RetroIcon name={iconForNode(node)} size={16} />
+        <RetroIcon name={iconForNode(node, isExpanded)} size={16} />
         <span
-          onClick={() => onSelect(node)}
+          onClick={handleRowClick}
           style={{ flex: 1 }}
           data-testid={`retro-tree-label-${node.id}`}
         >
@@ -94,6 +105,7 @@ function Row({
               selectedId={selectedId}
               onSelect={onSelect}
               onToggle={onToggle}
+              onContextMenu={onContextMenu}
             />
           ))}
         </ul>
