@@ -23,6 +23,13 @@ import {
   type SortSpec,
 } from '@/lib/workspace/retro-details'
 import { RetroTree } from './retro-tree'
+import { RetroEditor } from './retro-editor'
+import { RetroAboutModal, RetroHelpModal, RetroRecsModal } from './retro-modals'
+import {
+  initialModalState,
+  retroModalReducer,
+  type RetroModalKind,
+} from '@/lib/workspace/retro-modal'
 import type { ItemType } from '@/lib/scanner/adapters/base'
 import type { PanelItem } from '@/components/item-side-panel'
 
@@ -84,10 +91,13 @@ function scoreColor(score: number | null): string {
 export function RetroShell() {
   const reposReq = useSWR<ApiRepo[]>('/api/registry?resource=repos', fetcher)
   const itemsReq = useSWR<PanelItem[]>('/api/registry?limit=1000', fetcher)
-  const { state, setSkin, openEditor } = useWorkspace()
+  const { state, setSkin, openEditor, setCurrent, closeTab } = useWorkspace()
 
   const [navState, dispatch] = useReducer(retroNavReducer, initialRetroNavState)
   const [sort, setSort] = useState<SortSpec>({ key: 'name', dir: 'asc' })
+  const [modal, dispatchModal] = useReducer(retroModalReducer, initialModalState)
+  const openModal = (kind: RetroModalKind) => dispatchModal({ type: 'open', kind })
+  const closeModal = () => dispatchModal({ type: 'close' })
 
   const repos = reposReq.data ?? EMPTY_REPOS
   const items = itemsReq.data ?? EMPTY_ITEMS
@@ -182,6 +192,19 @@ export function RetroShell() {
           <span style={{ fontSize: 16 }}>⟳</span>
           <span>Scan</span>
         </button>
+        <span className="rs-tool-sep" />
+        <button className="rs-tool-btn" onClick={() => openModal('recs')}>
+          <span style={{ fontSize: 16 }}>★</span>
+          <span>Recs</span>
+        </button>
+        <button className="rs-tool-btn" onClick={() => openModal('help')}>
+          <span style={{ fontSize: 16 }}>?</span>
+          <span>Help</span>
+        </button>
+        <button className="rs-tool-btn" onClick={() => openModal('about')}>
+          <span style={{ fontSize: 16 }}>ℹ</span>
+          <span>About</span>
+        </button>
         <div style={{ flex: 1 }} />
         <button
           className="rs-tool-btn"
@@ -228,16 +251,31 @@ export function RetroShell() {
         </div>
         <div className="rs-splitter" />
         <div className="rs-content">
+          <RetroContentTabs
+            tabs={state.tabs}
+            current={state.current}
+            onActivate={setCurrent}
+            onClose={closeTab}
+          />
           <div
             style={{
               flex: 1,
-              background: '#fff',
+              background: state.current && state.current !== 'welcome' && state.tabs.find(t => t.id === state.current)?.kind === 'editor' ? '#000' : '#fff',
               margin: 2,
               border: '2px solid',
               borderColor: 'var(--rs-chrome-shadow) var(--rs-chrome-hi) var(--rs-chrome-hi) var(--rs-chrome-shadow)',
               overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
             }}
           >
+            {(() => {
+              const activeTab = state.tabs.find(t => t.id === state.current)
+              if (activeTab && activeTab.kind === 'editor') {
+                return <RetroEditorTab tabId={activeTab.id} runtime="claude" />
+              }
+              return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
                 <tr style={{ background: 'var(--rs-chrome)' }}>
@@ -333,6 +371,8 @@ export function RetroShell() {
                 )}
               </tbody>
             </table>
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -350,6 +390,118 @@ export function RetroShell() {
           {state.scanning ? '⟳ Scanning…' : 'Watch daemon idle'}
         </span>
       </div>
+
+      {modal.kind === 'recs' && <RetroRecsModal onClose={closeModal} />}
+      {modal.kind === 'about' && <RetroAboutModal onClose={closeModal} />}
+      {modal.kind === 'help' && <RetroHelpModal onClose={closeModal} />}
     </div>
   )
+}
+
+interface ContentTabsProps {
+  tabs: ReturnType<typeof useWorkspace>['state']['tabs']
+  current: string | null
+  onActivate: (id: string) => void
+  onClose: (id: string) => void
+}
+
+function RetroContentTabs({ tabs, current, onActivate, onClose }: ContentTabsProps) {
+  const editorTabs = tabs.filter(t => t.kind === 'editor')
+  const filesActive = !current || tabs.find(t => t.id === current)?.kind !== 'editor'
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    padding: '4px 9px',
+    marginRight: 2,
+    background: active ? '#fff' : 'var(--rs-chrome)',
+    border: '2px solid',
+    borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+    boxShadow: 'inset 1px 1px 0 #fff, inset -1px -1px 0 var(--rs-chrome-deep)',
+    borderBottom: 'none',
+    fontWeight: active ? 700 : 400,
+    fontSize: 11,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+  })
+
+  return (
+    <div
+      style={{
+        background: 'var(--rs-chrome)',
+        padding: '4px 4px 0 4px',
+        borderBottom: '1px solid var(--rs-chrome-lo)',
+        display: 'flex',
+      }}
+    >
+      <span
+        role="tab"
+        aria-selected={filesActive}
+        style={tabStyle(filesActive)}
+        onClick={() => onActivate('welcome')}
+      >
+        📁 Files
+      </span>
+      {editorTabs.map(t => {
+        const active = t.id === current
+        return (
+          <span
+            key={t.id}
+            role="tab"
+            aria-selected={active}
+            style={tabStyle(active)}
+            onClick={() => onActivate(t.id)}
+          >
+            {t.name}
+            <button
+              type="button"
+              aria-label={`Close ${t.name}`}
+              onClick={e => {
+                e.stopPropagation()
+                onClose(t.id)
+              }}
+              style={{
+                width: 13,
+                height: 13,
+                marginLeft: 4,
+                padding: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                background: 'var(--rs-chrome)',
+                border: '1px solid var(--rs-chrome-shadow)',
+                cursor: 'pointer',
+              }}
+            >
+              ×
+            </button>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+interface FileResponse {
+  id: string
+  path: string
+  body: string
+  size: number
+  mtimeMs: number
+}
+
+function RetroEditorTab({ tabId, runtime }: { tabId: string; runtime: string }) {
+  const file = useSWR<FileResponse>(`/api/file?id=${encodeURIComponent(tabId)}`, fetcher)
+  if (file.error) {
+    return (
+      <div style={{ padding: 14, color: '#b22222', fontFamily: 'var(--rs-font-mono)' }}>
+        load failed: {String(file.error)}
+      </div>
+    )
+  }
+  if (!file.data) {
+    return (
+      <div style={{ padding: 14, color: '#6b675d', fontFamily: 'var(--rs-font-mono)' }}>Loading…</div>
+    )
+  }
+  return <RetroEditor source={file.data.body} runtime={runtime} />
 }

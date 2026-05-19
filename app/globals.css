@@ -2173,8 +2173,8 @@
 
   /* Typography */
   --rs-font-ui: "Tahoma", "Geneva", "DejaVu Sans", "Verdana", sans-serif;
-  --rs-font-mono: "IBM Plex Mono", monospace;
-  --rs-font-editor: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  --rs-font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
+  --rs-font-editor: var(--font-vt323), var(--font-plex-mono), ui-monospace, monospace;
 }
 
 [data-skin="retro"] body {
