@@ -1,14 +1,102 @@
 'use client'
-import { tokenizeMarkdown } from '@/lib/workspace/retro-tokenize'
+import { useEffect, useReducer } from 'react'
+import CodeMirror from '@uiw/react-codemirror'
+import { markdown } from '@codemirror/lang-markdown'
+import { yaml } from '@codemirror/lang-yaml'
+import type { Extension } from '@codemirror/state'
+import { retroExtension } from './retro-codemirror-theme'
+import {
+  editorReducer,
+  effectiveStatus,
+  initialEditorState,
+} from '@/lib/workspace/retro-editor-state'
 
 interface Props {
   source: string
   runtime: string
+  path?: string
+  tabId?: string
+  onSaved?: () => void
 }
 
-export function RetroEditor({ source, runtime }: Props) {
-  const lines = tokenizeMarkdown(source)
-  const byteCount = source.length
+function languageFor(path?: string): Extension | null {
+  if (!path) return markdown()
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.yml') || lower.endsWith('.yaml') || lower.endsWith('.toml')) {
+    return yaml()
+  }
+  return markdown()
+}
+
+export function RetroEditor({ source, runtime, path, tabId, onSaved }: Props) {
+  const [state, dispatch] = useReducer(editorReducer, initialEditorState)
+
+  useEffect(() => {
+    dispatch({ type: 'hydrate', body: source })
+  }, [source])
+
+  const status = effectiveStatus(state)
+  const byteCount = state.body.length
+  const lineCount = state.body.split('\n').length
+
+  const save = async () => {
+    if (!tabId) return
+    dispatch({ type: 'saving' })
+    try {
+      const resp = await fetch(`/api/file?id=${encodeURIComponent(tabId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: state.body }),
+      })
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}))
+        dispatch({ type: 'error', message: j.error ?? `HTTP ${resp.status}` })
+        return
+      }
+      dispatch({ type: 'saved' })
+      onSaved?.()
+    } catch (err) {
+      dispatch({ type: 'error', message: err instanceof Error ? err.message : 'save failed' })
+    }
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        const target = e.target as HTMLElement | null
+        if (!target?.closest?.('.cm-editor')) return
+        e.preventDefault()
+        if (status === 'dirty') void save()
+      }
+      if (e.key === 'F2') {
+        e.preventDefault()
+        if (status === 'dirty') void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, state.body, tabId])
+
+  const lang = languageFor(path)
+  const extensions: Extension[] = [...retroExtension]
+  if (lang) extensions.push(lang)
+
+  const statusBlurb = (() => {
+    switch (status) {
+      case 'dirty':
+        return '● unsaved'
+      case 'saving':
+        return '⟳ saving…'
+      case 'saved':
+        return '✓ saved'
+      case 'error':
+        return `× ${state.error ?? 'error'}`
+      case 'idle':
+      default:
+        return ''
+    }
+  })()
 
   return (
     <div
@@ -19,45 +107,29 @@ export function RetroEditor({ source, runtime }: Props) {
         flex: 1,
         background: '#000',
         color: '#d6d2c4',
-        fontFamily: 'var(--font-vt323), var(--font-plex-mono), ui-monospace, monospace',
+        fontFamily: 'var(--font-vt323), var(--font-plex-mono), monospace',
         fontSize: 18,
         lineHeight: 1,
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            data-testid="retro-editor-line"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '48px 1fr',
-              alignItems: 'baseline',
-            }}
-          >
-            <span
-              className="retro-editor-lineno"
-              style={{
-                textAlign: 'right',
-                color: '#6b675d',
-                borderRight: '1px solid #1a1814',
-                paddingRight: 10,
-                marginRight: 8,
-              }}
-            >
-              {i + 1}
-            </span>
-            <span>
-              {line.tokens.map((tok, j) => (
-                <span key={j} className={`tok-${tok.class}`} style={{ color: colorFor(tok.class) }}>
-                  {tok.text}
-                </span>
-              ))}
-            </span>
-          </div>
-        ))}
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        <CodeMirror
+          value={state.body}
+          theme="dark"
+          extensions={extensions}
+          height="100%"
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: false,
+            highlightActiveLine: false,
+            autocompletion: false,
+          }}
+          onChange={value => dispatch({ type: 'edit', body: value })}
+          style={{ height: '100%' }}
+          data-testid="retro-editor-cm"
+        />
       </div>
       <div
         style={{
@@ -71,15 +143,26 @@ export function RetroEditor({ source, runtime }: Props) {
           gap: 16,
           alignItems: 'center',
           borderTop: '1px solid #000',
+          zIndex: 2,
+          position: 'relative',
         }}
       >
         <Kbd label="F1">Help</Kbd>
         <Kbd label="F2">Save</Kbd>
         <Kbd label="F3">Find</Kbd>
         <Kbd label="F9">Run</Kbd>
+        {statusBlurb && (
+          <span
+            style={{
+              color: status === 'error' ? '#ffb0b0' : status === 'dirty' ? '#f4c243' : '#d6f5d6',
+            }}
+          >
+            {statusBlurb}
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         <span>
-          Ln {lines.length}, Col 1 · {byteCount} bytes · {runtime}
+          Ln {lineCount}, Col 1 · {byteCount} bytes · {runtime}
         </span>
       </div>
       <div
@@ -90,6 +173,7 @@ export function RetroEditor({ source, runtime }: Props) {
           pointerEvents: 'none',
           background:
             'repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px)',
+          zIndex: 1,
         }}
       />
     </div>
@@ -112,24 +196,4 @@ function Kbd({ label, children }: { label: string; children: React.ReactNode }) 
       {children}
     </span>
   )
-}
-
-function colorFor(cls: string): string | undefined {
-  switch (cls) {
-    case 'h1':
-      return '#f4c243'
-    case 'h2':
-      return '#d6a020'
-    case 'k':
-      return '#6cb0e8'
-    case 'dash':
-      return '#d97aaa'
-    case 'num':
-      return '#6cb0e8'
-    case 'em':
-      return '#f4c243'
-    case 's':
-    default:
-      return '#d6d2c4'
-  }
 }

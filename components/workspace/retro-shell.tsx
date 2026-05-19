@@ -658,5 +658,13 @@ function RetroEditorTab({ tabId, runtime }: { tabId: string; runtime: string }) 
       <div style={{ padding: 14, color: '#6b675d', fontFamily: 'var(--rs-font-mono)' }}>Loading…</div>
     )
   }
-  return <RetroEditor source={file.data.body} runtime={runtime} />
+  return (
+    <RetroEditor
+      source={file.data.body}
+      runtime={runtime}
+      path={file.data.path}
+      tabId={tabId}
+      onSaved={() => file.mutate()}
+    />
+  )
 }
