@@ -1,6 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import matter from 'gray-matter'
 import { parse as parseToml } from 'smol-toml'
 import {
   makeId,
@@ -18,9 +19,43 @@ function now(): string {
   return new Date().toISOString()
 }
 
+function readFrontmatter(filePath: string): Record<string, unknown> {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8')
+    return matter(raw).data as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
+function scanSkillDir(dirPath: string): RegistryItem[] {
+  if (!fs.existsSync(dirPath)) return []
+  const out: RegistryItem[] = []
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+    const skillPath = path.join(dirPath, entry.name, 'SKILL.md')
+    if (!fs.existsSync(skillPath)) continue
+    const meta = readFrontmatter(skillPath)
+    out.push({
+      id: makeId('codex', 'personal', 'skill', skillPath),
+      runtime: 'codex',
+      scope: 'personal',
+      type: 'skill',
+      name: (meta.name as string) ?? entry.name,
+      path: skillPath,
+      repoPath: null,
+      health: 'ok',
+      issues: [],
+      metadata: meta,
+      scannedAt: now(),
+    })
+  }
+  return out
+}
+
 export class CodexAdapter implements RuntimeAdapter {
   id = 'codex' as const
-  producedTypes: ItemType[] = ['mcp', 'hook', 'instruction', 'command']
+  producedTypes: ItemType[] = ['skill', 'mcp', 'hook', 'instruction', 'command']
   private personalDir: string
 
   constructor(opts: CodexAdapterOptions = {}) {
@@ -29,6 +64,8 @@ export class CodexAdapter implements RuntimeAdapter {
 
   async scanPersonal(): Promise<RegistryItem[]> {
     const out: RegistryItem[] = []
+
+    out.push(...scanSkillDir(path.join(this.personalDir, 'skills')))
 
     const tomlPath = path.join(this.personalDir, 'config.toml')
     if (fs.existsSync(tomlPath)) {
