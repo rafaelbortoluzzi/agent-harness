@@ -1,7 +1,9 @@
 'use client'
+import { useState } from 'react'
 import useSWR from 'swr'
 import { RetroModal } from './retro-modal'
 import { useWorkspace } from '@/lib/workspace/store'
+import type { PanelItem } from '@/components/item-side-panel'
 
 const fetcher = (u: string) => fetch(u).then(r => r.json())
 
@@ -244,6 +246,280 @@ export function RetroOptionsModal({ onClose }: { onClose: () => void }) {
         >
           Open Settings
         </button>
+      </div>
+    </RetroModal>
+  )
+}
+
+function HealthPill({ health }: { health: 'ok' | 'warning' | 'broken' }) {
+  const color =
+    health === 'broken' ? '#b22222' : health === 'warning' ? '#8a6500' : '#1f7a3a'
+  return (
+    <span
+      style={{
+        padding: '1px 8px',
+        background: 'var(--rs-chrome-hi)',
+        border: `1px solid ${color}`,
+        color,
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+      }}
+    >
+      {health}
+    </span>
+  )
+}
+
+function ScoreBar({ score }: { score: number | null | undefined }) {
+  if (score == null) return <span style={{ color: '#6b675d' }}>—</span>
+  const pct = Math.max(0, Math.min(100, score))
+  const color = score >= 7 ? '#1f7a3a' : score >= 5 ? '#cc8a00' : '#b22222'
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span
+        style={{
+          width: 60,
+          height: 8,
+          background: 'var(--rs-chrome-hi)',
+          border: '1px solid var(--rs-chrome-shadow)',
+          position: 'relative',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: `${pct * 10}%`,
+            background: color,
+          }}
+        />
+      </span>
+      <span style={{ fontFamily: 'var(--font-plex-mono)' }}>{score.toFixed(1)}</span>
+    </span>
+  )
+}
+
+export function RetroPropsModal({
+  item,
+  onClose,
+  onChanged,
+}: {
+  item: PanelItem
+  onClose: () => void
+  onChanged?: () => void
+}) {
+  const [days, setDays] = useState(7)
+  const [reason, setReason] = useState('')
+
+  const snooze = async () => {
+    await fetch('/api/snooze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId: item.id, days, reason }),
+    })
+    onChanged?.()
+    onClose()
+  }
+
+  return (
+    <RetroModal title={`${item.name} — Properties`} onClose={onClose} width={520}>
+      <div style={{ padding: 4, fontSize: 11, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Row label="Name" value={item.name} />
+        <Row label="Type" value={item.type} />
+        <Row label="Runtime" value={item.runtime} />
+        <Row label="Scope" value={item.scope} />
+        <Row label="Path" value={item.path} mono />
+        <Row label="Repo" value={item.repoPath ?? '—'} mono />
+        <Row label="Health" value={<HealthPill health={item.health} />} />
+        {item.issues.length > 0 && (
+          <Row
+            label="Issues"
+            value={
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {item.issues.map((iss, i) => (
+                  <li key={i} style={{ color: '#b22222' }}>
+                    {iss}
+                  </li>
+                ))}
+              </ul>
+            }
+          />
+        )}
+        <Row label="Score" value={<ScoreBar score={item.qualityScore ?? null} />} />
+        {item.qualityRationale && (
+          <Row
+            label="Rationale"
+            value={
+              <blockquote
+                style={{
+                  margin: 0,
+                  padding: '6px 10px',
+                  background: 'var(--rs-chrome-hi)',
+                  borderLeft: '3px solid var(--rs-chrome-shadow)',
+                  fontStyle: 'italic',
+                  color: '#4a4740',
+                }}
+              >
+                {item.qualityRationale}
+              </blockquote>
+            }
+          />
+        )}
+        <Row label="Scanned" value={new Date(item.scannedAt).toLocaleString()} />
+        {item.judgedAt && <Row label="Judged" value={new Date(item.judgedAt).toLocaleString()} />}
+
+        <div
+          style={{
+            marginTop: 10,
+            padding: '8px 10px',
+            background: 'var(--rs-chrome-hi)',
+            border: '1px solid var(--rs-chrome-shadow)',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Snooze</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              For
+              <input
+                type="number"
+                min={0}
+                value={days}
+                onChange={e => setDays(Number(e.target.value) || 0)}
+                style={{ width: 50 }}
+              />
+              days
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="reason (optional)"
+              style={{ flex: 1, minWidth: 140 }}
+            />
+            <button
+              type="button"
+              onClick={snooze}
+              style={{
+                padding: '2px 12px',
+                background: 'var(--rs-chrome)',
+                border: '2px solid',
+                borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              Snooze
+            </button>
+          </div>
+        </div>
+      </div>
+    </RetroModal>
+  )
+}
+
+function Row({
+  label,
+  value,
+  mono,
+}: {
+  label: string
+  value: React.ReactNode
+  mono?: boolean
+}) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: 8, alignItems: 'start' }}>
+      <span style={{ fontWeight: 700, color: '#4a4740' }}>{label}</span>
+      <span style={{ fontFamily: mono ? 'var(--font-plex-mono), monospace' : undefined, wordBreak: 'break-all' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+export function RetroJudgeModal({
+  unscoredCount,
+  onClose,
+  onStarted,
+}: {
+  unscoredCount: number
+  onClose: () => void
+  onStarted?: () => void
+}) {
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const estimateSec = Math.max(2, unscoredCount * 3)
+
+  const start = async () => {
+    setRunning(true)
+    setError(null)
+    try {
+      const resp = await fetch('/api/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}))
+        setError(j.error ?? `HTTP ${resp.status}`)
+        setRunning(false)
+        return
+      }
+      onStarted?.()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'judge failed')
+      setRunning(false)
+    }
+  }
+
+  return (
+    <RetroModal title="Judge with LLM" onClose={onClose} width={440}>
+      <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <p style={{ fontSize: 12, margin: 0 }}>
+          <strong>{unscoredCount}</strong> unscored items will be sent to the configured LLM
+          provider for evaluation.
+        </p>
+        <p style={{ fontSize: 11, color: '#6b675d', margin: 0 }}>
+          Estimated time: ~{estimateSec}s · cost varies by provider.
+        </p>
+        {error && (
+          <p style={{ fontSize: 11, color: '#b22222', margin: 0 }}>
+            <strong>Error:</strong> {error}
+          </p>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={running}
+            style={{
+              padding: '4px 14px',
+              background: 'var(--rs-chrome)',
+              border: '2px solid',
+              borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={start}
+            disabled={running || unscoredCount === 0}
+            style={{
+              padding: '4px 14px',
+              background: 'var(--rs-chrome)',
+              border: '2px solid',
+              borderColor: 'var(--rs-chrome-hi) var(--rs-chrome-shadow) var(--rs-chrome-shadow) var(--rs-chrome-hi)',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {running ? 'Judging…' : 'Start Judging'}
+          </button>
+        </div>
       </div>
     </RetroModal>
   )

@@ -29,7 +29,9 @@ import { RetroIcon, iconForType } from './retro-icons'
 import {
   RetroAboutModal,
   RetroHelpModal,
+  RetroJudgeModal,
   RetroOptionsModal,
+  RetroPropsModal,
   RetroRecsModal,
   RetroScanLogModal,
   RetroSnoozedModal,
@@ -58,6 +60,7 @@ const MENUS: MenuDef[] = [
     label: 'File',
     items: [
       { id: 'new', label: 'New Skill…', kbd: 'Ctrl+N', disabled: true },
+      { id: 'props', label: 'Properties' },
       { id: 'sep1', sep: true },
       { id: 'go-root', label: 'Go to Root' },
       { id: 'sep2', sep: true },
@@ -300,6 +303,12 @@ export function RetroShell() {
             case 'about':
               openModal('about')
               break
+            case 'judge':
+              openModal('judge')
+              break
+            case 'props':
+              if (navState.selectedItemId) openModal('props')
+              break
             case 'go-root':
               dispatch({ type: 'go-root' })
               break
@@ -329,9 +338,18 @@ export function RetroShell() {
           <RetroIcon name="scan" size={20} />
           <span>Scan</span>
         </button>
-        <button className="rs-tool-btn" onClick={() => openModal('recs')}>
+        <button className="rs-tool-btn" onClick={() => openModal('judge')}>
           <RetroIcon name="judge" size={20} />
           <span>Judge</span>
+        </button>
+        <button
+          className="rs-tool-btn"
+          onClick={() => openModal('props')}
+          disabled={!navState.selectedItemId}
+          style={!navState.selectedItemId ? { opacity: 0.5 } : undefined}
+        >
+          <RetroIcon name="props" size={20} />
+          <span>Props</span>
         </button>
         <span className="rs-tool-sep" />
         <button className="rs-tool-btn" onClick={() => openModal('recs')}>
@@ -579,6 +597,25 @@ export function RetroShell() {
       {modal.kind === 'scan-log' && <RetroScanLogModal onClose={closeModal} />}
       {modal.kind === 'snoozed' && <RetroSnoozedModal onClose={closeModal} />}
       {modal.kind === 'options' && <RetroOptionsModal onClose={closeModal} />}
+      {modal.kind === 'judge' && (
+        <RetroJudgeModal
+          unscoredCount={items.filter(i => i.qualityScore == null).length}
+          onClose={closeModal}
+          onStarted={() => itemsReq.mutate()}
+        />
+      )}
+      {modal.kind === 'props' &&
+        (() => {
+          const selected = items.find(i => i.id === navState.selectedItemId)
+          if (!selected) return null
+          return (
+            <RetroPropsModal
+              item={selected}
+              onClose={closeModal}
+              onChanged={() => itemsReq.mutate()}
+            />
+          )
+        })()}
       {tweaksOpen && (
         <RetroTweaksModal
           tweaks={tweaks}
